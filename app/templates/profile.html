@@ -1,0 +1,6 @@
+{% extends "Base.html" %}
+{% block content %}
+<h2>Welkom, {{ user['emailaddress'] }}</h2>
+<p>Jouw accountgegevens zijn opgeslagen in AgriFlow.</p>
+<a href="{{ url_for('routes.order') }}">Plaats een bestelling</a>
+{% endblock %}
