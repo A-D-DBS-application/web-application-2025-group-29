@@ -4,7 +4,7 @@ from supabase import create_client, Client
 class Config:
     SECRET_KEY = 'Agriflowgroup29'
     SQLALCHEMY_DATABASE_URI = (
-        'postgresql://Agriflow:Agriflowgroup29@db.ikdirrysepokfryqnxre.supabase.co:5432/Agriflow'
+        'postgresql://postgres:Agriflowgroup29@db.ikdirrysepokfryqnxre.supabase.co:5432/postgres'
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
