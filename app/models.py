@@ -74,3 +74,17 @@ def insert_farmer(data):
     db.session.add(farmer)
     db.session.commit()
     return farmer
+
+
+def insert_address(data):
+    address = Address(
+        created_at=datetime.utcnow(),
+        farmer_id=data.get('farmer_id'),
+        street_name=data.get('street_name'),
+        house_number=data.get('house_number'),
+        city=data.get('city'),
+        phone_number=data.get('phone_number')
+    )
+    db.session.add(address)
+    db.session.commit()
+    return address

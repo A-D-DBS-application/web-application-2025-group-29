@@ -1,19 +1,54 @@
 {% extends "Base.html" %}
 {% block content %}
-<h2>Nieuwe bestelling</h2>
-<form method="POST">
-    <label>Deadline:</label>
-    <input type="date" name="deadline" required><br>
-
-    <label>Taaktype:</label>
-    <input type="text" name="task_type" required><br>
-
-    <label>Producttype:</label>
-    <input type="text" name="product_type" required><br>
-
-    <label>Adres ID:</label>
-    <input type="number" name="address_id" required><br>
-
-    <button type="submit">Verstuur bestelling</button>
-</form>
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-8 col-xl-7">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h2 class="h4 mb-3">Nieuwe bestelling</h2>
+        <form method="POST" class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Deadline</label>
+            <input type="date" name="deadline" class="form-control" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Taaktype</label>
+            <select name="task_type" class="form-select" required>
+              <option value="" selected disabled>Kies een taak</option>
+              <option value="pletten">Pletten</option>
+              <option value="malen">Malen</option>
+              <option value="zuigen">Zuigen</option>
+              <option value="blazen">Blazen</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Producttype</label>
+            <input type="text" name="product_type" class="form-control" placeholder="Bijv. Maïs" required>
+          </div>
+          <div class="col-12 mt-3">
+            <h5 class="mb-2">Adresgegevens</h5>
+          </div>
+          <div class="col-md-8">
+            <label class="form-label">Straat</label>
+            <input type="text" name="street_name" class="form-control" placeholder="Straatnaam" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Huisnummer</label>
+            <input type="text" name="house_number" class="form-control" placeholder="Nr." required>
+          </div>
+          <div class="col-md-8">
+            <label class="form-label">Stad</label>
+            <input type="text" name="city" class="form-control" placeholder="Gemeente/Stad" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Telefoon</label>
+            <input type="text" name="phone_number" class="form-control" placeholder="Contactnummer" required>
+          </div>
+          <div class="col-12 d-grid d-md-flex justify-content-md-end">
+            <button class="btn btn-success" type="submit">Verstuur bestelling</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  </div>
 {% endblock %}

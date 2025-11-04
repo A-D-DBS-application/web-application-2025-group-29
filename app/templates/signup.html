@@ -4,7 +4,7 @@
   <div class="col-12 col-md-7 col-lg-5">
     <div class="card shadow-sm">
       <div class="card-body p-4">
-        <h2 class="h4 mb-3 text-center">Inloggen</h2>
+        <h2 class="h4 mb-3 text-center">Account aanmaken</h2>
         <form method="POST" class="needs-validation" novalidate>
           <div class="mb-3">
             <label class="form-label">E-mail</label>
@@ -12,15 +12,17 @@
           </div>
           <div class="mb-4">
             <label class="form-label">Wachtwoord</label>
-            <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+            <input type="password" name="password" class="form-control" placeholder="Minimaal 6 tekens" required>
           </div>
           <div class="d-grid">
-            <button type="submit" class="btn btn-success">Inloggen</button>
+            <button type="submit" class="btn btn-success">Registreren</button>
           </div>
         </form>
-        <p class="mt-3 mb-0 text-center">Nog geen account? <a href="{{ url_for('routes.signup') }}">Registreer hier</a></p>
+        <p class="mt-3 mb-0 text-center">Heb je al een account? <a href="{{ url_for('routes.login') }}">Inloggen</a></p>
       </div>
     </div>
   </div>
   </div>
 {% endblock %}
+
+

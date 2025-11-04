@@ -1,5 +1,10 @@
 {% extends "Base.html" %}
 {% block content %}
-<h1>Welkom bij AgriFlow</h1>
-<p>De slimme oplossing voor landbouwplanning en logistiek.</p>
+<div class="p-5 mb-4 bg-light rounded-3">
+  <div class="container-fluid py-5">
+    <h1 class="display-6 fw-bold">Welkom bij AgriFlow</h1>
+    <p class="col-md-8 fs-5">De slimme oplossing voor landbouwplanning en logistiek.</p>
+    <a class="btn btn-success btn-lg" href="{{ url_for('routes.order') }}">Plaats een bestelling</a>
+  </div>
+</div>
 {% endblock %}
