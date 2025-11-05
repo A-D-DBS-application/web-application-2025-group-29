@@ -100,6 +100,102 @@ def home():
             # Fall back to regular home if error
             return render_template('home.html', user_type='company', company_name=None, stats={'total_orders': 0, 'pending_orders': 0, 'recent_orders': []})
     
+    # For drivers, show driver-specific home page with available routes
+    if user_type == 'driver' and user_email:
+        try:
+            sb = get_authenticated_supabase()
+            # Get driver's company_id
+            driver_result = sb.table('chauffeurs').select('id, company_id').eq('email_adres', user_email).limit(1).execute()
+            driver_id = None
+            company_id = None
+            
+            if driver_result.data and len(driver_result.data) > 0:
+                driver_id = driver_result.data[0]['id']
+                company_id = driver_result.data[0].get('company_id')
+            
+            # If no company assigned, redirect to select company
+            if not company_id:
+                return redirect(url_for('routes.driver_select_company'))
+            
+            # Get available routes (pending orders for this company)
+            available_routes = []
+            accepted_routes = []
+            
+            if company_id:
+                print(f"🔍 Looking for routes for company_id: {company_id}")
+                
+                # Get pending routes (available to accept)
+                pending_result = sb.table('Orders').select('*, Address(*), Companies(*)').eq('company_id', company_id).eq('status', 'pending').order('deadline', desc=False).limit(50).execute()
+                
+                print(f"📊 Found {len(pending_result.data) if pending_result.data else 0} pending routes for company {company_id}")
+                
+                if pending_result.data:
+                    for order in pending_result.data:
+                        route_info = {
+                            'id': order.get('id'),
+                            'deadline': order.get('deadline'),
+                            'task_type': order.get('task_type'),
+                            'product_type': order.get('product_type'),
+                            'created_at': order.get('created_at'),
+                            'status': 'pending',
+                            'address': None,
+                            'company': None
+                        }
+                        if order.get('Address'):
+                            addr = order['Address']
+                            route_info['address'] = {
+                                'street_name': addr.get('street_name'),
+                                'house_number': addr.get('house_number'),
+                                'city': addr.get('city'),
+                                'phone_number': addr.get('phone_number')
+                            }
+                        if order.get('Companies'):
+                            company = order['Companies']
+                            route_info['company'] = {
+                                'name': company.get('name')
+                            }
+                        available_routes.append(route_info)
+                
+                # Get accepted routes by this driver (with navigation button)
+                if driver_id:
+                    accepted_result = sb.table('Orders').select('*, Address(*), Companies(*)').eq('driver_id', driver_id).eq('status', 'accepted').order('deadline', desc=False).limit(50).execute()
+                    
+                    print(f"✅ Found {len(accepted_result.data) if accepted_result.data else 0} accepted routes for driver {driver_id}")
+                    
+                    if accepted_result.data:
+                        for order in accepted_result.data:
+                            route_info = {
+                                'id': order.get('id'),
+                                'deadline': order.get('deadline'),
+                                'task_type': order.get('task_type'),
+                                'product_type': order.get('product_type'),
+                                'created_at': order.get('created_at'),
+                                'status': 'accepted',
+                                'address': None,
+                                'company': None
+                            }
+                            if order.get('Address'):
+                                addr = order['Address']
+                                route_info['address'] = {
+                                    'street_name': addr.get('street_name'),
+                                    'house_number': addr.get('house_number'),
+                                    'city': addr.get('city'),
+                                    'phone_number': addr.get('phone_number')
+                                }
+                            if order.get('Companies'):
+                                company = order['Companies']
+                                route_info['company'] = {
+                                    'name': company.get('name')
+                                }
+                            accepted_routes.append(route_info)
+            
+            return render_template('home.html', user_type='driver', available_routes=available_routes, accepted_routes=accepted_routes, company_id=company_id, driver_id=driver_id)
+        except Exception as e:
+            print(f"Error loading driver home: {e}")
+            import traceback
+            traceback.print_exc()
+            return render_template('home.html', user_type='driver', available_routes=[], accepted_routes=[], company_id=None, driver_id=None)
+    
     # For customers and others, show regular home page
     return render_template('home.html', user_type=user_type)
 
@@ -890,6 +986,126 @@ def company_dashboard():
         return render_template('company_dashboard.html', orders=[], user_email=session.get('email', ''))
 
 
+@bp.route('/driver/select-company', methods=['GET', 'POST'])
+@login_required
+def driver_select_company():
+    """Allow driver to select their company (one-time setup)"""
+    user_type = session.get('user_type', 'customer')
+    if user_type != 'driver':
+        flash("Je hebt geen toegang tot deze pagina.", "error")
+        return redirect(url_for('routes.profile'))
+    
+    user_email = session.get('email')
+    
+    if request.method == 'POST':
+        company_id = request.form.get('company_id')
+        if not company_id:
+            flash("Selecteer een bedrijf.", "error")
+            return redirect(url_for('routes.driver_select_company'))
+        
+        try:
+            sb = get_authenticated_supabase()
+            # Get or create driver record
+            driver_result = sb.table('chauffeurs').select('id').eq('email_adres', user_email).limit(1).execute()
+            
+            if driver_result.data and len(driver_result.data) > 0:
+                driver_id = driver_result.data[0]['id']
+                # Update driver with company_id
+                sb.table('chauffeurs').update({'company_id': int(company_id)}).eq('id', driver_id).execute()
+            else:
+                # Create new driver record
+                sb.table('chauffeurs').insert({
+                    'email_adres': user_email,
+                    'company_id': int(company_id),
+                    'name': user_email.split('@')[0]  # Use email prefix as name
+                }).execute()
+            
+            flash("Bedrijf succesvol geselecteerd!", "success")
+            return redirect(url_for('routes.home'))
+        except Exception as e:
+            flash(f"Fout bij het selecteren van bedrijf: {str(e)}", "error")
+            import traceback
+            traceback.print_exc()
+    
+    # GET: Show company selection form
+    try:
+        sb = get_authenticated_supabase()
+        # Get all companies
+        companies_result = sb.table('Companies').select('id, name').order('name').execute()
+        companies = companies_result.data if companies_result.data else []
+        
+        # Check if driver already has a company
+        driver_result = sb.table('chauffeurs').select('company_id').eq('email_adres', user_email).limit(1).execute()
+        if driver_result.data and len(driver_result.data) > 0 and driver_result.data[0].get('company_id'):
+            # Already has company, redirect to home
+            return redirect(url_for('routes.home'))
+        
+        return render_template('driver_select_company.html', companies=companies)
+    except Exception as e:
+        flash(f"Fout bij het ophalen van bedrijven: {str(e)}", "error")
+        return render_template('driver_select_company.html', companies=[])
+
+
+@bp.route('/driver/accept-route/<int:order_id>', methods=['POST'])
+@login_required
+def driver_accept_route(order_id):
+    """Accept a route (order)"""
+    user_type = session.get('user_type', 'customer')
+    if user_type != 'driver':
+        flash("Je hebt geen toegang tot deze actie.", "error")
+        return redirect(url_for('routes.profile'))
+    
+    try:
+        sb = get_authenticated_supabase()
+        user_email = session.get('email')
+        
+        # Get driver ID
+        driver_result = sb.table('chauffeurs').select('id').eq('email_adres', user_email).limit(1).execute()
+        if not driver_result.data or len(driver_result.data) == 0:
+            flash("Chauffeur niet gevonden.", "error")
+            return redirect(url_for('routes.home'))
+        
+        driver_id = driver_result.data[0]['id']
+        
+        # Update order status and assign to driver
+        sb.table('Orders').update({
+            'status': 'accepted',
+            'driver_id': driver_id
+        }).eq('id', order_id).execute()
+        
+        flash("Route geaccepteerd!", "success")
+    except Exception as e:
+        flash(f"Fout bij het accepteren van route: {str(e)}", "error")
+        import traceback
+        traceback.print_exc()
+    
+    return redirect(url_for('routes.home'))
+
+
+@bp.route('/driver/reject-route/<int:order_id>', methods=['POST'])
+@login_required
+def driver_reject_route(order_id):
+    """Reject a route (order)"""
+    user_type = session.get('user_type', 'customer')
+    if user_type != 'driver':
+        flash("Je hebt geen toegang tot deze actie.", "error")
+        return redirect(url_for('routes.profile'))
+    
+    try:
+        sb = get_authenticated_supabase()
+        
+        # Update order status to rejected
+        sb.table('Orders').update({
+            'status': 'rejected'
+        }).eq('id', order_id).execute()
+        
+        flash("Route afgewezen.", "info")
+    except Exception as e:
+        flash(f"Fout bij het afwijzen van route: {str(e)}", "error")
+    
+    return redirect(url_for('routes.home'))
+
+
 @bp.route('/driver/dashboard')
 @login_required
 def driver_dashboard():
@@ -900,8 +1116,22 @@ def driver_dashboard():
     
     try:
         sb = get_authenticated_supabase()
-        # Get all orders with address information (sorted by deadline)
-        orders_result = sb.table('Orders').select('*, Address(*)').order('deadline', desc=False).limit(100).execute()
+        user_email = session.get('email')
+        
+        # Get driver's company_id
+        driver_result = sb.table('chauffeurs').select('id, company_id').eq('email_adres', user_email).limit(1).execute()
+        driver_id = None
+        company_id = None
+        
+        if driver_result.data and len(driver_result.data) > 0:
+            driver_id = driver_result.data[0]['id']
+            company_id = driver_result.data[0].get('company_id')
+        
+        if not company_id:
+            return redirect(url_for('routes.driver_select_company'))
+        
+        # Get accepted routes for this driver (sorted by deadline)
+        orders_result = sb.table('Orders').select('*, Address(*), Companies(*)').eq('driver_id', driver_id).eq('status', 'accepted').order('deadline', desc=False).limit(100).execute()
         
         orders = []
         if orders_result.data:
@@ -912,7 +1142,8 @@ def driver_dashboard():
                     'task_type': order.get('task_type'),
                     'product_type': order.get('product_type'),
                     'created_at': order.get('created_at'),
-                    'address': None
+                    'address': None,
+                    'company': None
                 }
                 # Get address if available
                 if order.get('Address'):
@@ -923,11 +1154,19 @@ def driver_dashboard():
                         'city': addr.get('city'),
                         'phone_number': addr.get('phone_number')
                     }
+                # Get company name if available
+                if order.get('Companies'):
+                    company = order['Companies']
+                    order_info['company'] = {
+                        'name': company.get('name')
+                    }
                 orders.append(order_info)
         
-        return render_template('driver_dashboard.html', orders=orders, user_email=session.get('email', ''))
+        return render_template('driver_dashboard.html', orders=orders, user_email=user_email)
     except Exception as e:
         flash(f"Fout bij het ophalen van ritten: {str(e)}", "error")
+        import traceback
+        traceback.print_exc()
         return render_template('driver_dashboard.html', orders=[], user_email=session.get('email', ''))
 
 @bp.route('/logout')
@@ -1016,13 +1255,15 @@ def order():
             
             # Create order via Supabase REST API
             # Store customer email so customers can only see their own orders
+            # Explicitly set status to 'pending' so drivers can see it
             order_data = {
                 "deadline": request.form.get("deadline"),
                 "task_type": request.form.get("task_type"),
                 "product_type": request.form.get("product_type"),
                 "address_id": address_id,
                 "company_id": company_id,
-                "customer_email": session.get('email')  # Store customer email for filtering
+                "customer_email": session.get('email'),  # Store customer email for filtering
+                "status": "pending"  # Explicitly set status to pending for driver visibility
             }
             
             order_result = sb.table('Orders').insert(order_data).execute()

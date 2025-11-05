@@ -45,12 +45,24 @@
                     {{ order.address.city }}
                   </p>
                   {% if order.address.phone_number %}
-                  <p class="mb-0">
+                  <p class="mb-2">
                     <a href="tel:{{ order.address.phone_number }}" class="btn btn-sm btn-outline-primary">
                       📞 {{ order.address.phone_number }}
                     </a>
                   </p>
                   {% endif %}
+                  {% endif %}
+                  {% if order.address %}
+                  <div class="d-grid mt-3">
+                    {% set full_address = order.address.street_name ~ ' ' ~ order.address.house_number ~ ', ' ~ order.address.city %}
+                    <a 
+                      href="https://www.google.com/maps/dir/?api=1&destination={{ full_address|replace(' ', '+') }}" 
+                      target="_blank" 
+                      class="btn btn-success"
+                    >
+                      🗺️ Navigeer naar Google Maps
+                    </a>
+                  </div>
                   {% endif %}
                 </div>
               </div>

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h2 class="h4 mb-3 text-center">🚚 Selecteer je Bedrijf</h2>
+        <p class="text-muted text-center mb-4">Selecteer het bedrijf waar je voor werkt. Dit is een eenmalige instelling.</p>
+        
+        {% if companies %}
+        <form method="POST">
+          <div class="mb-3">
+            <label class="form-label">Bedrijf</label>
+            <select name="company_id" class="form-select" required>
+              <option value="" selected disabled>Kies een bedrijf</option>
+              {% for company in companies %}
+              <option value="{{ company.id }}">{{ company.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="d-grid">
+            <button type="submit" class="btn btn-warning btn-lg">Bevestigen</button>
+          </div>
+        </form>
+        {% else %}
+        <div class="alert alert-warning">
+          Geen bedrijven beschikbaar. Neem contact op met de beheerder.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
