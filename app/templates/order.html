@@ -1,4 +1,4 @@
-{% extends "Base.html" %}
+{% extends "base.html" %}
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-12 col-lg-8 col-xl-7">
@@ -23,6 +23,18 @@
           <div class="col-md-6">
             <label class="form-label">Producttype</label>
             <input type="text" name="product_type" class="form-control" placeholder="Bijv. Maïs" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Bedrijf</label>
+            <select name="company_id" class="form-select" required>
+              <option value="" selected disabled>Kies een bedrijf</option>
+              {% for company in companies %}
+              <option value="{{ company.id }}">{{ company.name }}</option>
+              {% endfor %}
+            </select>
+            {% if not companies %}
+            <small class="text-muted">Geen bedrijven beschikbaar</small>
+            {% endif %}
           </div>
           <div class="col-12 mt-3">
             <h5 class="mb-2">Adresgegevens</h5>

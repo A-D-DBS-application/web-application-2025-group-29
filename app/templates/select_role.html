@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-10 col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h2 class="h4 mb-4 text-center">Kies je rol</h2>
+        <p class="text-muted text-center mb-4">Selecteer je rol om verder te gaan.</p>
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <form method="POST" action="{{ url_for('routes.choose_auth') }}">
+              <input type="hidden" name="user_type" value="company">
+              <button type="submit" class="card h-100 border-2 w-100 text-start p-0" style="background: none; border: 2px solid #198754!important; transition: all 0.3s;" onmouseover="this.style.boxShadow='0 0.5rem 1rem rgba(0,0,0,0.15)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow=''; this.style.transform='translateY(0)'">
+                <div class="card-body text-center p-4">
+                  <h5 class="card-title text-success mb-3">🏢 Bedrijf (Company)</h5>
+                  <p class="card-text text-muted mb-0">Ik ben een bedrijf en wil bestellingen bekijken en beheren.</p>
+                </div>
+              </button>
+            </form>
+          </div>
+          <div class="col-md-4">
+            <form method="POST" action="{{ url_for('routes.choose_auth') }}">
+              <input type="hidden" name="user_type" value="customer">
+              <button type="submit" class="card h-100 border-2 w-100 text-start p-0" style="background: none; border: 2px solid #0d6efd!important; transition: all 0.3s;" onmouseover="this.style.boxShadow='0 0.5rem 1rem rgba(0,0,0,0.15)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow=''; this.style.transform='translateY(0)'">
+                <div class="card-body text-center p-4">
+                  <h5 class="card-title text-primary mb-3">👤 Klant (Customer)</h5>
+                  <p class="card-text text-muted mb-0">Ik ben een klant en wil bestellingen plaatsen.</p>
+                </div>
+              </button>
+            </form>
+          </div>
+          <div class="col-md-4">
+            <form method="POST" action="{{ url_for('routes.choose_auth') }}">
+              <input type="hidden" name="user_type" value="driver">
+              <button type="submit" class="card h-100 border-2 w-100 text-start p-0" style="background: none; border: 2px solid #ffc107!important; transition: all 0.3s;" onmouseover="this.style.boxShadow='0 0.5rem 1rem rgba(0,0,0,0.15)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow=''; this.style.transform='translateY(0)'">
+                <div class="card-body text-center p-4">
+                  <h5 class="card-title text-warning mb-3">🚚 Chauffeur (Driver)</h5>
+                  <p class="card-text text-muted mb-0">Ik ben een chauffeur en wil mijn ritten bekijken.</p>
+                </div>
+              </button>
+            </form>
+          </div>
+        </div>
+        <p class="mt-4 mb-0 text-center">
+          <a href="{{ url_for('routes.home') }}" class="text-decoration-none">Terug naar home</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
