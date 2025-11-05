@@ -1,14 +1,199 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="p-5 mb-4 bg-light rounded-3">
-  <div class="container-fluid py-5">
-    <h1 class="display-6 fw-bold">Welkom bij AgriFlow</h1>
-    <p class="col-md-8 fs-5">De slimme oplossing voor landbouwplanning en logistiek.</p>
-    {% if g.current_user_id %}
-      <a class="btn btn-success btn-lg" href="{{ url_for('routes.order') }}">Plaats een bestelling</a>
-    {% else %}
-      <a class="btn btn-success btn-lg" href="{{ url_for('routes.select_role') }}">Begin hier</a>
-    {% endif %}
+
+{% if user_type == 'company' %}
+  <!-- Company Home Page -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="p-5 mb-4 bg-success text-white rounded-3">
+        <div class="container-fluid py-5">
+          <h1 class="display-5 fw-bold">🏢 Welkom bij AgriFlow</h1>
+          <p class="col-md-8 fs-4">
+            {% if company_name %}
+              {{ company_name }}
+            {% else %}
+              Bedrijf Dashboard
+            {% endif %}
+          </p>
+          <p class="col-md-8 fs-6 opacity-75">Beheer je bestellingen en klanten op één plek</p>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
+
+  <div class="row g-4 mb-4">
+    <!-- Statistics Cards -->
+    <div class="col-md-4">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body text-center">
+          <div class="display-4 mb-3">📊</div>
+          <h3 class="card-title">{{ stats.total_orders }}</h3>
+          <p class="card-text text-muted">Totaal Bestellingen</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body text-center">
+          <div class="display-4 mb-3">⏳</div>
+          <h3 class="card-title">{{ stats.pending_orders }}</h3>
+          <p class="card-text text-muted">Openstaande Bestellingen</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body text-center">
+          <div class="display-4 mb-3">📈</div>
+          <h3 class="card-title">{{ (stats.total_orders - stats.pending_orders) if stats.total_orders >= stats.pending_orders else 0 }}</h3>
+          <p class="card-text text-muted">Afgehandelde Bestellingen</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="row g-4 mb-4">
+    <div class="col-12">
+      <h3 class="mb-3">Snelle Acties</h3>
+    </div>
+    <div class="col-md-6 col-lg-3">
+      <a href="{{ url_for('routes.company_dashboard') }}" class="text-decoration-none">
+        <div class="card shadow-sm border-0 h-100 hover-card">
+          <div class="card-body text-center">
+            <div class="display-4 mb-3">📋</div>
+            <h5 class="card-title">Bestellingen Bekijken</h5>
+            <p class="card-text text-muted small">Bekijk alle bestellingen voor jouw bedrijf</p>
+          </div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-6 col-lg-3">
+      <a href="{{ url_for('routes.profile') }}" class="text-decoration-none">
+        <div class="card shadow-sm border-0 h-100 hover-card">
+          <div class="card-body text-center">
+            <div class="display-4 mb-3">⚙️</div>
+            <h5 class="card-title">Profiel Instellingen</h5>
+            <p class="card-text text-muted small">Wijzig je bedrijfsgegevens</p>
+          </div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-6 col-lg-3">
+      <div class="card shadow-sm border-0 h-100 bg-light">
+        <div class="card-body text-center">
+          <div class="display-4 mb-3">📊</div>
+          <h5 class="card-title">Rapporten</h5>
+          <p class="card-text text-muted small">Binnenkort beschikbaar</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+      <div class="card shadow-sm border-0 h-100 bg-light">
+        <div class="card-body text-center">
+          <div class="display-4 mb-3">💬</div>
+          <h5 class="card-title">Klantencontact</h5>
+          <p class="card-text text-muted small">Binnenkort beschikbaar</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Orders -->
+  {% if stats.recent_orders and stats.recent_orders|length > 0 %}
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm border-0">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0">🕒 Recente Bestellingen</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Datum</th>
+                  <th>Deadline</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for order in stats.recent_orders %}
+                <tr>
+                  <td>Bestelling #{{ order.id }}</td>
+                  <td>{{ order.created_at[:10] if order.created_at else '-' }}</td>
+                  <td>
+                    {% if order.deadline %}
+                      <span class="badge bg-info">{{ order.deadline }}</span>
+                    {% else %}
+                      <span class="text-muted">Geen deadline</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="mt-3 text-center">
+            <a href="{{ url_for('routes.company_dashboard') }}" class="btn btn-success">Alle Bestellingen Bekijken →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+{% else %}
+  <!-- Customer/Public Home Page -->
+  <div class="p-5 mb-4 bg-light rounded-3">
+    <div class="container-fluid py-5">
+      <h1 class="display-6 fw-bold">Welkom bij AgriFlow</h1>
+      <p class="col-md-8 fs-5">De slimme oplossing voor landbouwplanning en logistiek.</p>
+      {% if g.current_user_id and user_type == 'customer' %}
+        <div class="mt-4">
+          <a class="btn btn-success btn-lg me-2" href="{{ url_for('routes.order') }}">Plaats een bestelling</a>
+          <a class="btn btn-outline-primary btn-lg" href="{{ url_for('routes.customer_orders') }}">Mijn Bestellingen</a>
+        </div>
+      {% elif g.current_user_id and user_type != 'customer' %}
+        <p class="col-md-8 fs-6 text-muted mt-3">Je bent ingelogd als {{ user_type }}. Gebruik het menu om naar je dashboard te gaan.</p>
+      {% else %}
+        <a class="btn btn-success btn-lg" href="{{ url_for('routes.select_role') }}">Begin hier</a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if g.current_user_id and user_type == 'customer' %}
+  <div class="row g-4 mt-4">
+    <div class="col-md-6">
+      <div class="card shadow-sm border-0">
+        <div class="card-body">
+          <h5 class="card-title">📦 Plaats een Bestelling</h5>
+          <p class="card-text">Bestel landbouwservices bij je favoriete bedrijven. Kies uit verschillende taken en producten.</p>
+          <a href="{{ url_for('routes.order') }}" class="btn btn-success">Bestellen →</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card shadow-sm border-0">
+        <div class="card-body">
+          <h5 class="card-title">📋 Mijn Bestellingen</h5>
+          <p class="card-text">Bekijk de status van je bestellingen en volg je orders op.</p>
+          <a href="{{ url_for('routes.customer_orders') }}" class="btn btn-outline-primary">Bekijken →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+{% endif %}
+
+<style>
+.hover-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.hover-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+</style>
 {% endblock %}

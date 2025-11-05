@@ -25,9 +25,18 @@ def get_authenticated_supabase():
     if session.get('sb_access_token') and session.get('sb_refresh_token'):
         try:
             client.auth.set_session(access_token=session.get('sb_access_token'), refresh_token=session.get('sb_refresh_token'))
-        except Exception:
+            # Verify the session is working by getting the user
+            try:
+                user = client.auth.get_user()
+                print(f"✓ Authenticated Supabase client - User: {user.user.email if user.user else 'None'}")
+            except Exception as verify_error:
+                print(f"⚠ Session verification failed: {verify_error}")
+        except Exception as e:
+            print(f"⚠ Failed to set session on Supabase client: {e}")
             # If session setting fails, continue with unauthenticated client
             pass
+    else:
+        print(f"⚠ No session tokens in Flask session - using unauthenticated client")
     return client
 
 def login_required(view_func):
@@ -51,7 +60,48 @@ def load_current_user():
 
 @bp.route('/')
 def home():
-    return render_template('home.html')
+    user_type = session.get('user_type', 'customer')
+    user_email = session.get('email')
+    
+    # For companies, show company-specific home page with stats
+    if user_type == 'company' and user_email:
+        try:
+            sb = get_authenticated_supabase()
+            # Get company ID
+            company_result = sb.table('Companies').select('id, name').eq('emailaddress', user_email).limit(1).execute()
+            company_id = None
+            company_name = None
+            
+            if company_result.data and len(company_result.data) > 0:
+                company_id = company_result.data[0]['id']
+                company_name = company_result.data[0].get('name', 'Bedrijf')
+            
+            # Get statistics for company
+            stats = {
+                'total_orders': 0,
+                'pending_orders': 0,
+                'recent_orders': []
+            }
+            
+            if company_id:
+                # Get total orders for this company
+                orders_result = sb.table('Orders').select('id, deadline, created_at').eq('company_id', company_id).execute()
+                if orders_result.data:
+                    stats['total_orders'] = len(orders_result.data)
+                    # Count orders without deadline or with future deadline as pending
+                    today = datetime.now().date().isoformat()
+                    stats['pending_orders'] = sum(1 for o in orders_result.data if not o.get('deadline') or o.get('deadline') >= today)
+                    # Get 5 most recent orders
+                    stats['recent_orders'] = sorted(orders_result.data, key=lambda x: x.get('created_at', ''), reverse=True)[:5]
+            
+            return render_template('home.html', user_type='company', company_name=company_name, stats=stats)
+        except Exception as e:
+            print(f"Error loading company home: {e}")
+            # Fall back to regular home if error
+            return render_template('home.html', user_type='company', company_name=None, stats={'total_orders': 0, 'pending_orders': 0, 'recent_orders': []})
+    
+    # For customers and others, show regular home page
+    return render_template('home.html', user_type=user_type)
 
 
 @bp.route('/debug-login')
@@ -345,7 +395,17 @@ def signup():
                         # Now use authenticated client to create company
                         sb = get_authenticated_supabase()
                         
+                        # Verify authentication by checking current user
+                        try:
+                            current_user_check = sb.auth.get_user()
+                            print(f"✓ Verified authentication - Current user: {current_user_check.user.email if current_user_check.user else 'None'}")
+                            if current_user_check.user and current_user_check.user.email != email:
+                                print(f"⚠ Warning: Authenticated as {current_user_check.user.email}, but signing up as {email}")
+                        except Exception as verify_error:
+                            print(f"⚠ Could not verify authentication: {verify_error}")
+                        
                         # Check if company already exists
+                        print(f"Checking if company exists for {email}...")
                         existing_company = sb.table('Companies').select('id').eq('emailaddress', email).limit(1).execute()
                         
                         if existing_company.data and len(existing_company.data) > 0:
@@ -358,17 +418,26 @@ def signup():
                         else:
                             # Create Company record with provided company name
                             print(f"Creating company '{company_name}' for {email}...")
-                            company_result = sb.table('Companies').insert({
-                                "name": company_name,
-                                "emailaddress": email,
-                                "created_at": datetime.utcnow().isoformat()
-                            }).execute()
+                            print(f"  Using authenticated client with email: {email}")
                             
-                            if company_result.data and len(company_result.data) > 0:
-                                company_id = company_result.data[0]['id']
-                                print(f"✓ Company '{company_name}' successfully created with ID {company_id}")
-                            else:
-                                print(f"✗ Company creation returned no data")
+                            try:
+                                company_result = sb.table('Companies').insert({
+                                    "name": company_name,
+                                    "emailaddress": email,
+                                    "created_at": datetime.utcnow().isoformat()
+                                }).execute()
+                                
+                                if company_result.data and len(company_result.data) > 0:
+                                    company_id = company_result.data[0]['id']
+                                    print(f"✓ Company '{company_name}' successfully created with ID {company_id}")
+                                else:
+                                    print(f"✗ Company creation returned no data")
+                                    print(f"  Response: {company_result}")
+                            except Exception as insert_error:
+                                print(f"✗ Error during company insert: {insert_error}")
+                                import traceback
+                                traceback.print_exc()
+                                raise  # Re-raise to be caught by outer exception handler
                         
                         # Create farmer record linked to company
                         if company_id:
@@ -715,6 +784,58 @@ def profile():
     return render_template('profile.html', user=user_ctx)
 
 
+@bp.route('/customer/orders')
+@login_required
+def customer_orders():
+    """Show customer's own orders only"""
+    user_type = session.get('user_type', 'customer')
+    if user_type != 'customer':
+        flash("Je hebt geen toegang tot deze pagina.", "error")
+        return redirect(url_for('routes.profile'))
+    
+    try:
+        sb = get_authenticated_supabase()
+        customer_email = session.get('email')
+        
+        # Get only orders placed by this customer (filtered by customer_email)
+        orders_result = sb.table('Orders').select('*, Address(*), Companies(*)').eq('customer_email', customer_email).order('created_at', desc=True).limit(100).execute()
+        
+        orders = []
+        if orders_result.data:
+            for order in orders_result.data:
+                order_info = {
+                    'id': order.get('id'),
+                    'deadline': order.get('deadline'),
+                    'task_type': order.get('task_type'),
+                    'product_type': order.get('product_type'),
+                    'created_at': order.get('created_at'),
+                    'address': None,
+                    'company': None
+                }
+                # Get address if available
+                if order.get('Address'):
+                    addr = order['Address']
+                    order_info['address'] = {
+                        'street_name': addr.get('street_name'),
+                        'house_number': addr.get('house_number'),
+                        'city': addr.get('city'),
+                        'phone_number': addr.get('phone_number')
+                    }
+                # Get company name if available
+                if order.get('Companies'):
+                    company = order['Companies']
+                    order_info['company'] = {
+                        'name': company.get('name'),
+                        'id': company.get('id')
+                    }
+                orders.append(order_info)
+        
+        return render_template('customer_orders.html', orders=orders, user_email=customer_email)
+    except Exception as e:
+        flash(f"Fout bij het ophalen van bestellingen: {str(e)}", "error")
+        return render_template('customer_orders.html', orders=[], user_email=session.get('email', ''))
+
+
 @bp.route('/company/dashboard')
 @login_required
 def company_dashboard():
@@ -725,8 +846,21 @@ def company_dashboard():
     
     try:
         sb = get_authenticated_supabase()
-        # Get all orders with address information (newest first)
-        orders_result = sb.table('Orders').select('*, Address(*)').order('created_at', desc=True).limit(100).execute()
+        # Get company_id for the logged-in company
+        company_email = session.get('email')
+        company_id = None
+        
+        # Find the company ID for this company
+        company_result = sb.table('Companies').select('id').eq('emailaddress', company_email).limit(1).execute()
+        if company_result.data and len(company_result.data) > 0:
+            company_id = company_result.data[0]['id']
+        
+        if not company_id:
+            flash("Bedrijf niet gevonden. Neem contact op met de beheerder.", "error")
+            return render_template('company_dashboard.html', orders=[], user_email=company_email)
+        
+        # Get only orders for this company (filtered by company_id)
+        orders_result = sb.table('Orders').select('*, Address(*)').eq('company_id', company_id).order('created_at', desc=True).limit(100).execute()
         
         orders = []
         if orders_result.data:
@@ -806,6 +940,12 @@ def logout():
 @bp.route('/order', methods=['GET', 'POST'])
 @login_required
 def order():
+    # Only customers can place orders, companies cannot
+    user_type = session.get('user_type', 'customer')
+    if user_type == 'company':
+        flash("Bedrijven kunnen geen bestellingen plaatsen. Gebruik het dashboard om bestellingen te bekijken.", "error")
+        return redirect(url_for('routes.company_dashboard'))
+    
     # Get authenticated Supabase client
     sb = get_authenticated_supabase()
     
@@ -875,12 +1015,14 @@ def order():
                 return render_template('order.html', companies=companies)
             
             # Create order via Supabase REST API
+            # Store customer email so customers can only see their own orders
             order_data = {
                 "deadline": request.form.get("deadline"),
                 "task_type": request.form.get("task_type"),
                 "product_type": request.form.get("product_type"),
                 "address_id": address_id,
-                "company_id": company_id
+                "company_id": company_id,
+                "customer_email": session.get('email')  # Store customer email for filtering
             }
             
             order_result = sb.table('Orders').insert(order_data).execute()
