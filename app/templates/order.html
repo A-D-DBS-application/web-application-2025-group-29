@@ -26,14 +26,37 @@
           </div>
           <div class="col-md-6">
             <label class="form-label">Bedrijf</label>
-            <select name="company_id" class="form-select" required>
-              <option value="" selected disabled>Kies een bedrijf</option>
-              {% for company in companies %}
-              <option value="{{ company.id }}">{{ company.name }}</option>
-              {% endfor %}
-            </select>
+            <div class="position-relative">
+              <input 
+                type="text" 
+                id="company-search" 
+                class="form-control" 
+                placeholder="Zoek een bedrijf..." 
+                autocomplete="off"
+                onkeyup="filterCompanies()"
+                onclick="toggleCompanyDropdown()"
+              >
+              <div id="company-dropdown" class="dropdown-menu w-100" style="max-height: 300px; overflow-y: auto; display: none;">
+                {% for company in companies %}
+                <a 
+                  class="dropdown-item company-option" 
+                  href="#" 
+                  data-company-id="{{ company.id }}"
+                  data-company-name="{{ company.name }}"
+                  onclick="selectCompany(event, '{{ company.id }}', '{{ company.name }}')"
+                >
+                  {{ company.name }}
+                </a>
+                {% endfor %}
+                {% if not companies %}
+                <div class="dropdown-item text-muted">Geen bedrijven beschikbaar</div>
+                {% endif %}
+              </div>
+              <input type="hidden" name="company_id" id="selected-company-id" required>
+            </div>
+            <small class="text-muted" id="selected-company-display" style="display: none;"></small>
             {% if not companies %}
-            <small class="text-muted">Geen bedrijven beschikbaar</small>
+            <small class="text-danger">Geen bedrijven beschikbaar</small>
             {% endif %}
           </div>
           <div class="col-12 mt-3">
@@ -63,4 +86,121 @@
     </div>
   </div>
   </div>
+
+<script>
+function filterCompanies() {
+  const searchTerm = document.getElementById('company-search').value.toLowerCase();
+  const dropdown = document.getElementById('company-dropdown');
+  const options = dropdown.querySelectorAll('.company-option');
+  
+  let hasVisibleOptions = false;
+  
+  options.forEach(option => {
+    const companyName = option.getAttribute('data-company-name').toLowerCase();
+    if (companyName.includes(searchTerm)) {
+      option.style.display = 'block';
+      hasVisibleOptions = true;
+    } else {
+      option.style.display = 'none';
+    }
+  });
+  
+  // Show dropdown if there are visible options or if search is active
+  if (searchTerm.length > 0 || hasVisibleOptions) {
+    dropdown.style.display = 'block';
+  } else {
+    dropdown.style.display = 'none';
+  }
+}
+
+function toggleCompanyDropdown() {
+  const dropdown = document.getElementById('company-dropdown');
+  const searchInput = document.getElementById('company-search');
+  
+  if (dropdown.style.display === 'none' || dropdown.style.display === '') {
+    dropdown.style.display = 'block';
+    filterCompanies(); // Apply current filter
+  }
+}
+
+function selectCompany(event, companyId, companyName) {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  // Set the hidden input value
+  document.getElementById('selected-company-id').value = companyId;
+  
+  // Update the search input to show selected company
+  document.getElementById('company-search').value = companyName;
+  
+  // Show selected company below input
+  const display = document.getElementById('selected-company-display');
+  display.textContent = 'Geselecteerd: ' + companyName;
+  display.style.display = 'block';
+  
+  // Hide dropdown
+  document.getElementById('company-dropdown').style.display = 'none';
+  
+  // Remove required attribute from search input and add to hidden input
+  document.getElementById('company-search').removeAttribute('required');
+  document.getElementById('selected-company-id').setAttribute('required', 'required');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(event) {
+  const companySearch = document.getElementById('company-search');
+  const dropdown = document.getElementById('company-dropdown');
+  
+  if (companySearch && dropdown) {
+    if (!companySearch.contains(event.target) && !dropdown.contains(event.target)) {
+      dropdown.style.display = 'none';
+    }
+  }
+});
+
+// Handle form submission validation
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.querySelector('form');
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      const selectedCompanyId = document.getElementById('selected-company-id');
+      if (!selectedCompanyId || !selectedCompanyId.value) {
+        e.preventDefault();
+        alert('Selecteer een bedrijf voordat je de bestelling plaatst.');
+        const searchInput = document.getElementById('company-search');
+        if (searchInput) {
+          searchInput.focus();
+          toggleCompanyDropdown();
+        }
+      }
+    });
+  }
+});
+</script>
+
+<style>
+#company-dropdown {
+  position: absolute;
+  z-index: 1000;
+  margin-top: 2px;
+  border: 1px solid #ced4da;
+  border-radius: 0.375rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.company-option {
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+}
+
+.company-option:hover {
+  background-color: #f8f9fa;
+}
+
+#company-search:focus {
+  border-color: #86b7fe;
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+</style>
 {% endblock %}
