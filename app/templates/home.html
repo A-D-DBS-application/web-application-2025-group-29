@@ -259,6 +259,16 @@
           {% endif %}
           {% endif %}
           <div class="d-grid gap-2 mt-3">
+            {% if route.address %}
+            {% set full_address = route.address.street_name ~ ' ' ~ route.address.house_number ~ ', ' ~ route.address.city %}
+            <a 
+              href="https://www.google.com/maps/dir/?api=1&destination={{ full_address|replace(' ', '+') }}" 
+              target="_blank" 
+              class="btn btn-info w-100"
+            >
+              🗺️ Bekijk in Google Maps
+            </a>
+            {% endif %}
             <form method="POST" action="{{ url_for('routes.driver_accept_route', order_id=route.id) }}" class="d-inline">
               <button type="submit" class="btn btn-success w-100">✓ Accepteer Route</button>
             </form>
