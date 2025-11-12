@@ -34,8 +34,6 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     SUPABASE_URL = os.getenv("SUPABASE_URL", "https://ikdirrysepokfryqnxre.supabase.co")
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
     SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
     
     # Fallback to known key if not set (for development)
@@ -61,12 +59,3 @@ except Exception as e:
 
 
     
-
-=======
-    SUPABASE_KEY = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZGlycnlzZXBva2ZyeXFueHJlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTAyMTA2MywiZXhwIjoyMDc2NTk3MDYzfQ.Cxa5SDrz2Soct8UI6cIjee338l2y3VYx8yQ126kBPPc")
->>>>>>> Stashed changes
-=======
-    SUPABASE_KEY = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZGlycnlzZXBva2ZyeXFueHJlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTAyMTA2MywiZXhwIjoyMDc2NTk3MDYzfQ.Cxa5SDrz2Soct8UI6cIjee338l2y3VYx8yQ126kBPPc")
->>>>>>> Stashed changes
-
-supabase: Client = create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
