@@ -4,26 +4,26 @@
   <div class="col-12 col-lg-8 col-xl-7">
     <div class="card shadow-sm">
       <div class="card-body p-4">
-        <h2 class="h4 mb-3">Nieuwe bestelling</h2>
+        <h2 class="h4 mb-3">Bestelling bewerken</h2>
         <form method="POST" class="row g-3">
           <div class="col-md-6">
             <label class="form-label">Deadline</label>
-            <input type="date" name="deadline" class="form-control" required>
+            <input type="date" name="deadline" class="form-control" value="{{ order.deadline or '' }}" required>
           </div>
           <div class="col-md-6">
             <label class="form-label">Taaktype</label>
             <select name="task_type" class="form-select" required>
-              <option value="" selected disabled>Kies een taak</option>
-              <option value="pletten">Pletten</option>
-              <option value="malen">Malen</option>
-              <option value="zuigen">Zuigen</option>
-              <option value="blazen">Blazen</option>
-              <option value="mengen">Mengen</option>
+              <option value="" disabled>Kies een taak</option>
+              <option value="pletten" {% if order.task_type == 'pletten' %}selected{% endif %}>Pletten</option>
+              <option value="malen" {% if order.task_type == 'malen' %}selected{% endif %}>Malen</option>
+              <option value="zuigen" {% if order.task_type == 'zuigen' %}selected{% endif %}>Zuigen</option>
+              <option value="blazen" {% if order.task_type == 'blazen' %}selected{% endif %}>Blazen</option>
+              <option value="mengen" {% if order.task_type == 'mengen' %}selected{% endif %}>Mengen</option>
             </select>
           </div>
           <div class="col-md-6">
             <label class="form-label">Producttype</label>
-            <input type="text" name="product_type" class="form-control" placeholder="Bijv. Maïs" required>
+            <input type="text" name="product_type" class="form-control" placeholder="Bijv. Maïs" value="{{ order.product_type or '' }}" required>
           </div>
           <div class="col-md-6">
             <label class="form-label">Bedrijf</label>
@@ -33,6 +33,7 @@
                 id="company-search" 
                 class="form-control" 
                 placeholder="Zoek een bedrijf..." 
+                value="{{ order.company.name if order.company else '' }}"
                 autocomplete="off"
                 onkeyup="filterCompanies()"
                 onclick="toggleCompanyDropdown()"
@@ -53,9 +54,11 @@
                 <div class="dropdown-item text-muted">Geen bedrijven beschikbaar</div>
                 {% endif %}
               </div>
-              <input type="hidden" name="company_id" id="selected-company-id" required>
+              <input type="hidden" name="company_id" id="selected-company-id" value="{{ order.company.id if order.company else '' }}" required>
             </div>
-            <small class="text-muted" id="selected-company-display" style="display: none;"></small>
+            <small class="text-muted" id="selected-company-display" style="{% if order.company %}display: block;{% else %}display: none;{% endif %}">
+              {% if order.company %}Geselecteerd: {{ order.company.name }}{% endif %}
+            </small>
             {% if not companies %}
             <small class="text-danger">Geen bedrijven beschikbaar</small>
             {% endif %}
@@ -65,22 +68,23 @@
           </div>
           <div class="col-md-8">
             <label class="form-label">Straat</label>
-            <input type="text" name="street_name" class="form-control" placeholder="Straatnaam" required>
+            <input type="text" name="street_name" class="form-control" placeholder="Straatnaam" value="{{ order.address.street_name if order.address else '' }}" required>
           </div>
           <div class="col-md-4">
             <label class="form-label">Huisnummer</label>
-            <input type="text" name="house_number" class="form-control" placeholder="Nr." required>
+            <input type="text" name="house_number" class="form-control" placeholder="Nr." value="{{ order.address.house_number if order.address else '' }}" required>
           </div>
           <div class="col-md-8">
             <label class="form-label">Stad</label>
-            <input type="text" name="city" class="form-control" placeholder="Gemeente/Stad" required>
+            <input type="text" name="city" class="form-control" placeholder="Gemeente/Stad" value="{{ order.address.city if order.address else '' }}" required>
           </div>
           <div class="col-md-4">
             <label class="form-label">Telefoon</label>
-            <input type="text" name="phone_number" class="form-control" placeholder="Contactnummer" required>
+            <input type="text" name="phone_number" class="form-control" placeholder="Contactnummer" value="{{ order.address.phone_number if order.address else '' }}" required>
           </div>
-          <div class="col-12 d-grid d-md-flex justify-content-md-end">
-            <button class="btn btn-success" type="submit">Verstuur bestelling</button>
+          <div class="col-12 d-grid d-md-flex justify-content-md-end gap-2">
+            <a href="{{ url_for('routes.customer_orders') }}" class="btn btn-secondary">Annuleren</a>
+            <button class="btn btn-primary" type="submit">Bestelling bijwerken</button>
           </div>
         </form>
       </div>
@@ -89,6 +93,26 @@
   </div>
 
 <script>
+// Set initial company display if order has a company
+document.addEventListener('DOMContentLoaded', function() {
+  {% if order.company %}
+  const companySearch = document.getElementById('company-search');
+  const selectedCompanyId = document.getElementById('selected-company-id');
+  const display = document.getElementById('selected-company-display');
+  
+  if (companySearch && !companySearch.value) {
+    companySearch.value = '{{ order.company.name }}';
+  }
+  if (selectedCompanyId && !selectedCompanyId.value) {
+    selectedCompanyId.value = '{{ order.company.id }}';
+  }
+  if (display) {
+    display.textContent = 'Geselecteerd: {{ order.company.name }}';
+    display.style.display = 'block';
+  }
+  {% endif %}
+});
+
 function filterCompanies() {
   const searchTerm = document.getElementById('company-search').value.toLowerCase();
   const dropdown = document.getElementById('company-dropdown');
@@ -167,7 +191,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const selectedCompanyId = document.getElementById('selected-company-id');
       if (!selectedCompanyId || !selectedCompanyId.value) {
         e.preventDefault();
-        alert('Selecteer een bedrijf voordat je de bestelling plaatst.');
+        alert('Selecteer een bedrijf voordat je de bestelling bijwerkt.');
         const searchInput = document.getElementById('company-search');
         if (searchInput) {
           searchInput.focus();
@@ -205,3 +229,4 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 </style>
 {% endblock %}
+

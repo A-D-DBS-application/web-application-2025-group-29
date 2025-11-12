@@ -932,6 +932,156 @@ def customer_orders():
         return render_template('customer_orders.html', orders=[], user_email=session.get('email', ''))
 
 
+@bp.route('/customer/orders/<int:order_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_order(order_id):
+    """Edit an existing order - only the owner can edit"""
+    user_type = session.get('user_type', 'customer')
+    if user_type != 'customer':
+        flash("Je hebt geen toegang tot deze pagina.", "error")
+        return redirect(url_for('routes.profile'))
+    
+    sb = get_authenticated_supabase()
+    customer_email = session.get('email')
+    
+    try:
+        # Get the order and verify it belongs to the current customer
+        order_result = sb.table('Orders').select('*, Address(*), Companies(*)').eq('id', order_id).eq('customer_email', customer_email).limit(1).execute()
+        
+        if not order_result.data or len(order_result.data) == 0:
+            flash("Bestelling niet gevonden of je hebt geen toegang tot deze bestelling.", "error")
+            return redirect(url_for('routes.customer_orders'))
+        
+        order_data = order_result.data[0]
+        
+        # Get all companies for the dropdown
+        companies = []
+        try:
+            companies_result = sb.table('Companies').select('id, name, emailaddress').order('name').execute()
+            if companies_result.data:
+                companies = [
+                    {'id': c['id'], 'name': c['name']} 
+                    for c in companies_result.data
+                ]
+        except Exception as e:
+            print(f"Error fetching companies: {e}")
+            flash("Kon bedrijven niet ophalen. Probeer het later opnieuw.", "error")
+        
+        # Prepare order info for template
+        order_info = {
+            'id': order_data.get('id'),
+            'deadline': order_data.get('deadline'),
+            'task_type': order_data.get('task_type'),
+            'product_type': order_data.get('product_type'),
+            'created_at': order_data.get('created_at'),
+            'address': None,
+            'company': None,
+            'address_id': order_data.get('address_id')
+        }
+        
+        # Get address if available
+        if order_data.get('Address'):
+            addr = order_data['Address']
+            order_info['address'] = {
+                'street_name': addr.get('street_name'),
+                'house_number': addr.get('house_number'),
+                'city': addr.get('city'),
+                'phone_number': addr.get('phone_number'),
+                'id': addr.get('id')
+            }
+        
+        # Get company name if available
+        if order_data.get('Companies'):
+            company = order_data['Companies']
+            order_info['company'] = {
+                'name': company.get('name'),
+                'id': company.get('id')
+            }
+        
+        if request.method == 'POST':
+            try:
+                # Get farmer_id from Supabase Farmer table (if exists)
+                farmer_id = None
+                if session.get('email'):
+                    try:
+                        farmer_result = sb.table('Farmer').select('id').eq('emailadress', session['email']).limit(1).execute()
+                        if farmer_result.data and len(farmer_result.data) > 0:
+                            farmer_id = farmer_result.data[0]['id']
+                    except Exception:
+                        pass  # Farmer may not exist yet, that's okay
+                
+                # Coerce house_number to integer if possible
+                house_number_raw = request.form.get("house_number")
+                try:
+                    house_number_val = int(house_number_raw) if house_number_raw is not None else None
+                except ValueError:
+                    house_number_val = None
+                
+                # Update address via Supabase REST API
+                address_update_data = {
+                    "farmer_id": farmer_id,
+                    "street_name": request.form.get("street_name"),
+                    "house_number": house_number_val,
+                    "city": request.form.get("city"),
+                    "phone_number": request.form.get("phone_number")
+                }
+                
+                # Update the existing address
+                if order_info['address_id']:
+                    address_update_result = sb.table('Address').update(address_update_data).eq('id', order_info['address_id']).execute()
+                else:
+                    # If no address_id, create a new address (shouldn't happen, but handle it)
+                    address_result = sb.table('Address').insert(address_update_data).execute()
+                    if address_result.data and len(address_result.data) > 0:
+                        order_info['address_id'] = address_result.data[0]['id']
+                
+                # Get company_id from form (required field)
+                company_id = request.form.get("company_id")
+                if not company_id:
+                    flash("Bedrijf is verplicht. Selecteer een bedrijf.", "error")
+                    return render_template('edit_order.html', order=order_info, companies=companies)
+                
+                try:
+                    company_id = int(company_id)
+                except (ValueError, TypeError):
+                    flash("Ongeldig bedrijf geselecteerd.", "error")
+                    return render_template('edit_order.html', order=order_info, companies=companies)
+                
+                # Update order via Supabase REST API
+                order_update_data = {
+                    "deadline": request.form.get("deadline"),
+                    "task_type": request.form.get("task_type"),
+                    "product_type": request.form.get("product_type"),
+                    "company_id": company_id
+                }
+                
+                # Ensure address_id is set if we created a new address
+                if order_info['address_id']:
+                    order_update_data["address_id"] = order_info['address_id']
+                
+                order_update_result = sb.table('Orders').update(order_update_data).eq('id', order_id).eq('customer_email', customer_email).execute()
+                
+                if order_update_result.data:
+                    flash("Bestelling bijgewerkt!", "success")
+                    return redirect(url_for('routes.customer_orders'))
+                else:
+                    flash("Bestelling kon niet worden bijgewerkt.", "error")
+            except Exception as e:
+                flash(f"Fout bij het bijwerken van bestelling: {str(e)}", "error")
+                import traceback
+                traceback.print_exc()
+                return render_template('edit_order.html', order=order_info, companies=companies)
+        
+        # GET request - show edit form
+        return render_template('edit_order.html', order=order_info, companies=companies)
+    
+    except Exception as e:
+        flash(f"Fout bij het ophalen van bestelling: {str(e)}", "error")
+        import traceback
+        traceback.print_exc()
+        return redirect(url_for('routes.customer_orders'))
+
+
 @bp.route('/company/dashboard')
 @login_required
 def company_dashboard():

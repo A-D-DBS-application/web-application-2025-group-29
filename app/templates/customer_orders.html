@@ -24,6 +24,7 @@
                 <th scope="col">Producttype</th>
                 <th scope="col">Adres</th>
                 <th scope="col">Geplaatst op</th>
+                <th scope="col">Acties</th>
               </tr>
             </thead>
             <tbody>
@@ -64,6 +65,11 @@
                   {% else %}
                     <span class="text-muted">-</span>
                   {% endif %}
+                </td>
+                <td>
+                  <a href="{{ url_for('routes.edit_order', order_id=order.id) }}" class="btn btn-sm btn-outline-primary">
+                    ✏️ Bewerken
+                  </a>
                 </td>
               </tr>
               {% endfor %}
