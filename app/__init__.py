@@ -14,7 +14,7 @@ def create_app():
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SECURE'] = False  # False for localhost (http://)
-    app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 hours
+    app.config['PERMANENT_SESSION_LIFETIME'] = 86400  #24 hours
     
     # Ensure cookies work across browsers (especially Safari)
     app.config['SESSION_COOKIE_NAME'] = 'agriflow_session'
