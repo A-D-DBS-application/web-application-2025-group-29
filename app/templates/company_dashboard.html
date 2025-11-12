@@ -17,7 +17,7 @@
             <table class="table table-hover">
               <thead>
                 <tr>
-                  <th>ID</th>
+                  <th>Klant</th>
                   <th>Deadline</th>
                   <th>Taaktype</th>
                   <th>Producttype</th>
@@ -29,7 +29,13 @@
               <tbody>
                 {% for order in orders %}
                 <tr>
-                  <td>{{ order.id }}</td>
+                  <td>
+                    {% if order.customer_name or order.customer_lastname %}
+                      {{ order.customer_name }} {{ order.customer_lastname }}
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
                   <td>
                     {% if order.deadline %}
                       <span class="badge bg-info">

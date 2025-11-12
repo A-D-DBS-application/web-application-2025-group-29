@@ -1281,6 +1281,7 @@ def company_dashboard():
             return render_template('company_dashboard.html', orders=[], user_email=company_email)
         
         # Get only orders for this company (filtered by company_id)
+        # Use * to get all fields including customer_email and client_id
         orders_result = sb.table('Orders').select('*, Address(*)').eq('company_id', company_id).order('created_at', desc=True).limit(100).execute()
         
         orders = []
@@ -1292,7 +1293,9 @@ def company_dashboard():
                     'task_type': order.get('task_type'),
                     'product_type': order.get('product_type'),
                     'created_at': order.get('created_at'),
-                    'address': None
+                    'address': None,
+                    'customer_name': None,
+                    'customer_lastname': None
                 }
                 # Get address if available
                 if order.get('Address'):
@@ -1303,6 +1306,48 @@ def company_dashboard():
                         'city': addr.get('city'),
                         'phone_number': addr.get('phone_number')
                     }
+                
+                # Get customer name from Client table
+                # Try client_id first (more reliable), then fall back to customer_email
+                client_id = order.get('client_id')
+                customer_email = order.get('customer_email')
+                
+                # If order doesn't have client_id but has customer_email, try to link it
+                if not client_id and customer_email:
+                    try:
+                        # Find client by email and get their ID
+                        client_lookup = sb.table('Client').select('id').eq('emailaddress', customer_email).limit(1).execute()
+                        if client_lookup.data and len(client_lookup.data) > 0:
+                            client_id = client_lookup.data[0]['id']
+                            # Update the order to link it to the client
+                            try:
+                                sb.table('Orders').update({'client_id': client_id}).eq('id', order_info['id']).execute()
+                                print(f"Linked order {order_info['id']} to client_id {client_id}")
+                            except Exception as update_error:
+                                print(f"Warning: Could not update order {order_info['id']} with client_id: {update_error}")
+                    except Exception as e:
+                        print(f"Warning: Could not find client for email {customer_email}: {e}")
+                
+                # Get customer name using client_id (preferred) or customer_email (fallback)
+                if client_id:
+                    try:
+                        client_result = sb.table('Client').select('Name, Lastname').eq('id', client_id).limit(1).execute()
+                        if client_result.data and len(client_result.data) > 0:
+                            order_info['customer_name'] = client_result.data[0].get('Name', '')
+                            order_info['customer_lastname'] = client_result.data[0].get('Lastname', '')
+                    except Exception as e:
+                        print(f"Warning: Could not get customer name by client_id {client_id}: {e}")
+                
+                # If we still don't have the name, try customer_email
+                if (not order_info['customer_name'] and not order_info['customer_lastname']) and customer_email:
+                    try:
+                        client_result = sb.table('Client').select('Name, Lastname').eq('emailaddress', customer_email).limit(1).execute()
+                        if client_result.data and len(client_result.data) > 0:
+                            order_info['customer_name'] = client_result.data[0].get('Name', '')
+                            order_info['customer_lastname'] = client_result.data[0].get('Lastname', '')
+                    except Exception as e:
+                        print(f"Warning: Could not get customer name for {customer_email}: {e}")
+                
                 orders.append(order_info)
         
         return render_template('company_dashboard.html', orders=orders, user_email=session.get('email', ''))
