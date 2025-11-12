@@ -56,6 +56,19 @@ def load_current_user():
     g.current_user_id = session.get('sb_user_id')
     g.current_user_email = session.get('email')
     g.current_user_type = session.get('user_type', 'customer')
+    
+    # For customers, get display name (first_name + last_name) instead of email
+    if g.current_user_type == 'customer':
+        first_name = session.get('first_name', '')
+        last_name = session.get('last_name', '')
+        if first_name and last_name:
+            g.current_user_display_name = f"{first_name} {last_name}"
+        else:
+            # Fallback to email if name not available
+            g.current_user_display_name = g.current_user_email
+    else:
+        # For companies and drivers, use email
+        g.current_user_display_name = g.current_user_email
 
 
 @bp.route('/')
@@ -105,7 +118,7 @@ def home():
         try:
             sb = get_authenticated_supabase()
             # Get driver's company_id
-            driver_result = sb.table('chauffeurs').select('id, company_id').eq('email_adres', user_email).limit(1).execute()
+            driver_result = sb.table('Drivers').select('id, company_id').eq('email_address', user_email).limit(1).execute()
             driver_id = None
             company_id = None
             
@@ -307,7 +320,39 @@ def login():
             
             # Force session to be saved (important for Safari)
             session.modified = True
-            
+
+            # If customer, ensure they exist in Client table and get name
+            if user_type == 'customer':
+                try:
+                    sb = get_authenticated_supabase()
+                    # Check if client exists and get name
+                    client_result = sb.table('Client').select('id, Name, Lastname').eq('emailaddress', email).limit(1).execute()
+                    
+                    client_id = None
+                    if client_result.data and len(client_result.data) > 0:
+                        client_id = client_result.data[0]['id']
+                        first_name = client_result.data[0].get('Name', '')
+                        last_name = client_result.data[0].get('Lastname', '')
+                        session['first_name'] = first_name
+                        session['last_name'] = last_name
+                        print(f"✓ Client found with ID {client_id}, Name: {first_name} {last_name}")
+                    else:
+                        # Create Client record if it doesn't exist (without name, will be updated later)
+                        new_client = sb.table('Client').insert({
+                            "emailaddress": email,
+                            "created_at": datetime.utcnow().isoformat()
+                        }).execute()
+                        if new_client.data:
+                            client_id = new_client.data[0]['id']
+                            print(f"✓ Client created during login with ID {client_id} (name not set yet)")
+                    
+                    # Store client_id in session for later use
+                    if client_id:
+                        session['client_id'] = client_id
+                except Exception as e:
+                    # Log but don't fail login
+                    print(f"Warning: Could not create/check client record: {e}")
+
             # If company, ensure they exist in Companies and Farmer tables
             if user_type == 'company':
                 try:
@@ -461,6 +506,108 @@ def signup():
             if result.user is None:
                 flash("Registratie mislukt. Het account kon niet worden aangemaakt. Probeer het opnieuw.", "error")
                 return render_template('signup.html', user_type=user_type)
+
+            # If customer, create Client record in Supabase
+            if user_type == 'customer':
+                # Get first name and last name from form (required for customers)
+                first_name = request.form.get('first_name', '').strip()
+                last_name = request.form.get('last_name', '').strip()
+                
+                if not first_name:
+                    flash("Voornaam is verplicht voor klant accounts.", "error")
+                    return render_template('signup.html', user_type=user_type)
+                if not last_name:
+                    flash("Achternaam is verplicht voor klant accounts.", "error")
+                    return render_template('signup.html', user_type=user_type)
+                
+                try:
+                    # Sign in immediately after signup to get proper session tokens
+                    print(f"Signing in after signup to get session for client creation...")
+                    signin_result = supabase.auth.sign_in_with_password({"email": email, "password": password})
+                    
+                    if not signin_result.session:
+                        print(f"✗ Failed to get session after signup")
+                        flash("Account aangemaakt, maar kon niet inloggen. Probeer opnieuw in te loggen.", "warning")
+                        return redirect(url_for('routes.login', user_type=user_type))
+                    
+                    # Store session tokens
+                    session['sb_access_token'] = signin_result.session.access_token
+                    session['sb_refresh_token'] = signin_result.session.refresh_token
+                    session['sb_user_id'] = signin_result.user.id
+                    session['email'] = email
+                    session['user_type'] = user_type
+                    session.modified = True
+                    print(f"✓ Session obtained for client creation - Access token: {signin_result.session.access_token[:20]}...")
+                    
+                    # Create a fresh authenticated client with the session (don't use get_authenticated_supabase here)
+                    sb = create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
+                    sb.auth.set_session(
+                        access_token=signin_result.session.access_token,
+                        refresh_token=signin_result.session.refresh_token
+                    )
+                    
+                    # Verify authentication before proceeding
+                    try:
+                        auth_user = sb.auth.get_user()
+                        print(f"✓ Verified authenticated user: {auth_user.user.email if auth_user.user else 'None'}")
+                        if not auth_user.user or auth_user.user.email != email:
+                            print(f"✗ Authentication mismatch: expected {email}, got {auth_user.user.email if auth_user.user else 'None'}")
+                            flash("Account aangemaakt, maar authenticatie mislukt. Log opnieuw in.", "warning")
+                            return redirect(url_for('routes.login', user_type=user_type))
+                    except Exception as auth_error:
+                        print(f"✗ Authentication verification failed: {auth_error}")
+                        import traceback
+                        traceback.print_exc()
+                        flash("Account aangemaakt, maar authenticatie mislukt. Log opnieuw in.", "warning")
+                        return redirect(url_for('routes.login', user_type=user_type))
+                    
+                    # Check if client already exists
+                    existing_client = sb.table('Client').select('id, Name, Lastname').eq('emailaddress', email).limit(1).execute()
+                    
+                    if existing_client.data and len(existing_client.data) > 0:
+                        client_id = existing_client.data[0]['id']
+                        session['client_id'] = client_id
+                        # Update name if different
+                        if existing_client.data[0].get('Name') != first_name or existing_client.data[0].get('Lastname') != last_name:
+                            sb.table('Client').update({
+                                "Name": first_name,
+                                "Lastname": last_name
+                            }).eq('id', client_id).execute()
+                        session['first_name'] = first_name
+                        session['last_name'] = last_name
+                        print(f"✓ Client already exists with ID {client_id}, name updated")
+                    else:
+                        # Create Client record with name and lastname
+                        print(f"Creating Client record for {email} with Name: {first_name}, Lastname: {last_name}")
+                        try:
+                            client_result = sb.table('Client').insert({
+                                "emailaddress": email,
+                                "Name": first_name,
+                                "Lastname": last_name,
+                                "created_at": datetime.utcnow().isoformat()
+                            }).execute()
+                            
+                            print(f"Client insert result: {client_result}")
+                            
+                            if client_result.data and len(client_result.data) > 0:
+                                client_id = client_result.data[0]['id']
+                                session['client_id'] = client_id
+                                session['first_name'] = first_name
+                                session['last_name'] = last_name
+                                print(f"✓ Client successfully created with ID {client_id}, Name: {first_name} {last_name}")
+                            else:
+                                print(f"✗ Client creation returned no data: {client_result}")
+                                flash("Account aangemaakt, maar klantgegevens konden niet worden opgeslagen. Log opnieuw in om dit te corrigeren.", "warning")
+                        except Exception as insert_error:
+                            print(f"✗ Error during Client insert: {insert_error}")
+                            import traceback
+                            traceback.print_exc()
+                            flash("Account aangemaakt, maar klantgegevens konden niet worden opgeslagen. Log opnieuw in om dit te corrigeren.", "warning")
+                except Exception as e:
+                    print(f"Warning: Could not create client record: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    flash("Account aangemaakt, maar klantgegevens konden niet worden opgeslagen. Log opnieuw in om dit te corrigeren.", "warning")
 
             # If company, create Company record and Farmer record in Supabase
             # We need to sign in first to get proper authentication for RLS
@@ -872,11 +1019,39 @@ def profile():
     elif user_type == 'driver':
         return redirect(url_for('routes.driver_dashboard'))
     
-    # Avoid DB call; pass minimal user context for UI
+    # For customers, get name from session or Client table
     user_ctx = {
         "emailaddress": session.get('email', ''),
         "user_type": user_type
     }
+    
+    # For customers, add name information
+    if user_type == 'customer':
+        first_name = session.get('first_name', '')
+        last_name = session.get('last_name', '')
+        if first_name or last_name:
+            user_ctx['first_name'] = first_name
+            user_ctx['last_name'] = last_name
+            user_ctx['display_name'] = f"{first_name} {last_name}".strip()
+        else:
+            # Try to get name from Client table if not in session
+            try:
+                sb = get_authenticated_supabase()
+                client_id = session.get('client_id')
+                if client_id:
+                    client_result = sb.table('Client').select('Name, Lastname').eq('id', client_id).limit(1).execute()
+                    if client_result.data and len(client_result.data) > 0:
+                        first_name = client_result.data[0].get('Name', '')
+                        last_name = client_result.data[0].get('Lastname', '')
+                        if first_name or last_name:
+                            user_ctx['first_name'] = first_name
+                            user_ctx['last_name'] = last_name
+                            user_ctx['display_name'] = f"{first_name} {last_name}".strip()
+                            session['first_name'] = first_name
+                            session['last_name'] = last_name
+            except Exception as e:
+                print(f"Warning: Could not get client name: {e}")
+    
     return render_template('profile.html', user=user_ctx)
 
 
@@ -1156,16 +1331,16 @@ def driver_select_company():
         try:
             sb = get_authenticated_supabase()
             # Get or create driver record
-            driver_result = sb.table('chauffeurs').select('id').eq('email_adres', user_email).limit(1).execute()
+            driver_result = sb.table('Drivers').select('id').eq('email_address', user_email).limit(1).execute()
             
             if driver_result.data and len(driver_result.data) > 0:
                 driver_id = driver_result.data[0]['id']
                 # Update driver with company_id
-                sb.table('chauffeurs').update({'company_id': int(company_id)}).eq('id', driver_id).execute()
+                sb.table('Drivers').update({'company_id': int(company_id)}).eq('id', driver_id).execute()
             else:
                 # Create new driver record
-                sb.table('chauffeurs').insert({
-                    'email_adres': user_email,
+                sb.table('Drivers').insert({
+                    'email_address': user_email,
                     'company_id': int(company_id),
                     'name': user_email.split('@')[0]  # Use email prefix as name
                 }).execute()
@@ -1185,7 +1360,7 @@ def driver_select_company():
         companies = companies_result.data if companies_result.data else []
         
         # Check if driver already has a company
-        driver_result = sb.table('chauffeurs').select('company_id').eq('email_adres', user_email).limit(1).execute()
+        driver_result = sb.table('Drivers').select('company_id').eq('email_address', user_email).limit(1).execute()
         if driver_result.data and len(driver_result.data) > 0 and driver_result.data[0].get('company_id'):
             # Already has company, redirect to home
             return redirect(url_for('routes.home'))
@@ -1210,7 +1385,7 @@ def driver_accept_route(order_id):
         user_email = session.get('email')
         
         # Get driver ID
-        driver_result = sb.table('chauffeurs').select('id').eq('email_adres', user_email).limit(1).execute()
+        driver_result = sb.table('Drivers').select('id').eq('email_address', user_email).limit(1).execute()
         if not driver_result.data or len(driver_result.data) == 0:
             flash("Chauffeur niet gevonden.", "error")
             return redirect(url_for('routes.home'))
@@ -1269,7 +1444,7 @@ def driver_dashboard():
         user_email = session.get('email')
         
         # Get driver's company_id
-        driver_result = sb.table('chauffeurs').select('id, company_id').eq('email_adres', user_email).limit(1).execute()
+        driver_result = sb.table('Drivers').select('id, company_id').eq('email_address', user_email).limit(1).execute()
         driver_id = None
         company_id = None
         
@@ -1403,17 +1578,62 @@ def order():
                 flash("Ongeldig bedrijf geselecteerd.", "error")
                 return render_template('order.html', companies=companies)
             
+            # Get weight from form and convert to float
+            weight = None
+            weight_str = request.form.get("weight", "").strip()
+            if weight_str:
+                try:
+                    weight = float(weight_str)
+                except (ValueError, TypeError):
+                    flash("Ongeldig gewicht. Voer een geldig getal in.", "error")
+                    return render_template('order.html', companies=companies)
+            
+            if weight is None or weight <= 0:
+                flash("Gewicht is verplicht en moet groter zijn dan 0.", "error")
+                return render_template('order.html', companies=companies)
+            
+            # Get or create client_id for the customer
+            client_id = session.get('client_id')
+            if not client_id:
+                # Try to get client_id from Client table
+                try:
+                    customer_email = session.get('email')
+                    client_result = sb.table('Client').select('id, Name, Lastname').eq('emailaddress', customer_email).limit(1).execute()
+                    if client_result.data and len(client_result.data) > 0:
+                        client_id = client_result.data[0]['id']
+                        session['client_id'] = client_id
+                        # Update session with name if available
+                        first_name = client_result.data[0].get('Name', '')
+                        last_name = client_result.data[0].get('Lastname', '')
+                        if first_name:
+                            session['first_name'] = first_name
+                        if last_name:
+                            session['last_name'] = last_name
+                    else:
+                        # Create Client record if it doesn't exist (without name, will be set during signup)
+                        new_client = sb.table('Client').insert({
+                            "emailaddress": customer_email,
+                            "created_at": datetime.utcnow().isoformat()
+                        }).execute()
+                        if new_client.data:
+                            client_id = new_client.data[0]['id']
+                            session['client_id'] = client_id
+                except Exception as e:
+                    print(f"Warning: Could not get/create client_id: {e}")
+            
             # Create order via Supabase REST API
-            # Store customer email so customers can only see their own orders
-            # Explicitly set status to 'pending' so drivers can see it
+            # Link to Client table via client_id
+            # Also keep customer_email for backward compatibility and filtering
             order_data = {
                 "deadline": request.form.get("deadline"),
                 "task_type": request.form.get("task_type"),
                 "product_type": request.form.get("product_type"),
                 "address_id": address_id,
                 "company_id": company_id,
-                "customer_email": session.get('email'),  # Store customer email for filtering
-                "status": "pending"  # Explicitly set status to pending for driver visibility
+                "customer_email": session.get('email'),  # Keep for backward compatibility
+                "client_id": client_id,  # Link to Client table
+                "status": "pending",  # Explicitly set status to pending for driver visibility
+                "Weight": weight  # Store weight in kilograms
             }
             
             order_result = sb.table('Orders').insert(order_data).execute()
