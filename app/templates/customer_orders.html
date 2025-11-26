@@ -7,12 +7,12 @@
       <a href="{{ url_for('routes.order') }}" class="btn btn-success">Nieuwe Bestelling</a>
     </div>
     
-    {% if orders %}
-    <div class="card shadow-sm">
+    <div class="card shadow-sm mb-4">
       <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">Overzicht van mijn bestellingen</h5>
+        <h5 class="mb-0">Mijn Bestellingen</h5>
       </div>
       <div class="card-body p-0">
+        {% if active_orders %}
         <div class="table-responsive">
           <table class="table table-hover mb-0">
             <thead>
@@ -24,12 +24,13 @@
                 <th scope="col">Producttype</th>
                 <th scope="col">Adres</th>
                 <th scope="col">Chauffeur</th>
+                <th scope="col">Status</th>
                 <th scope="col">Geplaatst op</th>
                 <th scope="col">Acties</th>
               </tr>
             </thead>
             <tbody>
-              {% for order in orders %}
+              {% for order in active_orders %}
               <tr>
                 <td>{{ order.id }}</td>
                 <td>
@@ -68,6 +69,15 @@
                   {% endif %}
                 </td>
                 <td>
+                  {% if order.status %}
+                    <span class="badge bg-{% if order.status == 'completed' %}success{% elif order.status == 'accepted' %}info{% elif order.status == 'pending' %}warning text-dark{% else %}secondary{% endif %}">
+                      {% if order.status == 'completed' %}Uitgevoerd{% elif order.status == 'accepted' %}Toegewezen{% elif order.status == 'pending' %}In behandeling{% else %}{{ order.status|title }}{% endif %}
+                    </span>
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                <td>
                   {% if order.created_at %}
                     {{ order.created_at[:10] }}
                   {% else %}
@@ -89,13 +99,96 @@
             </tbody>
           </table>
         </div>
+        {% else %}
+        <div class="text-center py-5">
+          <p class="text-muted mb-0">Je hebt nog geen actieve bestellingen.</p>
+        </div>
+        {% endif %}
       </div>
     </div>
-    {% else %}
-    <div class="alert alert-info" role="alert">
-      Je hebt nog geen bestellingen geplaatst. <a href="{{ url_for('routes.order') }}" class="alert-link">Plaats je eerste bestelling</a>
+    
+    <div class="card shadow-sm">
+      <div class="card-header bg-secondary text-white">
+        <h5 class="mb-0">Voltooide Bestellingen</h5>
+      </div>
+      <div class="card-body p-0">
+        {% if completed_orders %}
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Bedrijf</th>
+                <th scope="col">Deadline</th>
+                <th scope="col">Taaktype</th>
+                <th scope="col">Producttype</th>
+                <th scope="col">Adres</th>
+                <th scope="col">Chauffeur</th>
+                <th scope="col">Status</th>
+                <th scope="col">Geplaatst op</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for order in completed_orders %}
+              <tr>
+                <td>{{ order.id }}</td>
+                <td>
+                  {% if order.company %}
+                    <span class="badge bg-success">{{ order.company.name }}</span>
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if order.deadline %}
+                    <span class="badge bg-info">
+                      {{ order.deadline }}
+                    </span>
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                <td><span class="badge bg-secondary">{{ order.task_type|default('-') }}</span></td>
+                <td>{{ order.product_type|default('-') }}</td>
+                <td>
+                  {% if order.address %}
+                    {{ order.address.street_name }} {{ order.address.house_number }}, {{ order.address.city }}
+                    {% if order.address.phone_number %}
+                      <br><small class="text-muted">Tel: {{ order.address.phone_number }}</small>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-muted">Geen adres</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if order.driver_name %}
+                    <span class="badge bg-warning text-dark">🚚 {{ order.driver_name }}</span>
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="badge bg-success">Uitgevoerd</span>
+                </td>
+                <td>
+                  {% if order.created_at %}
+                    {{ order.created_at[:10] }}
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+          <p class="text-muted mb-0">Je hebt nog geen voltooide bestellingen.</p>
+        </div>
+        {% endif %}
+      </div>
     </div>
-    {% endif %}
   </div>
 </div>
 {% endblock %}

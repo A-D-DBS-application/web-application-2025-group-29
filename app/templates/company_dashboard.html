@@ -15,12 +15,12 @@
     </div>
     {% endif %}
     
-    <div class="card shadow-sm">
+    <div class="card shadow-sm mb-4">
       <div class="card-header bg-success text-white">
         <h5 class="mb-0">Alle Bestellingen</h5>
       </div>
       <div class="card-body">
-        {% if orders %}
+        {% if active_orders %}
           <div class="table-responsive">
             <table class="table table-hover">
               <thead>
@@ -39,7 +39,7 @@
                 </tr>
               </thead>
               <tbody>
-                {% for order in orders %}
+                {% for order in active_orders %}
                 <tr>
                   <td>
                     {% if order.priority_score is defined %}
@@ -109,8 +109,8 @@
                   </td>
                   <td>
                     {% if order.status %}
-                      <span class="badge bg-{% if order.status == 'accepted' %}success{% elif order.status == 'pending' %}warning text-dark{% else %}secondary{% endif %}">
-                        {{ order.status }}
+                      <span class="badge bg-{% if order.status == 'completed' %}success{% elif order.status == 'accepted' %}info{% elif order.status == 'pending' %}warning text-dark{% else %}secondary{% endif %}">
+                        {% if order.status == 'completed' %}Uitgevoerd{% elif order.status == 'accepted' %}Toegewezen{% elif order.status == 'pending' %}In behandeling{% else %}{{ order.status|title }}{% endif %}
                       </span>
                     {% else %}
                       <span class="badge bg-secondary">onbekend</span>
@@ -154,7 +154,95 @@
           </div>
         {% else %}
           <div class="text-center py-5">
-            <p class="text-muted mb-0">Er zijn nog geen bestellingen geplaatst.</p>
+            <p class="text-muted mb-0">Er zijn nog geen actieve bestellingen.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+    
+    <div class="card shadow-sm">
+      <div class="card-header bg-secondary text-white">
+        <h5 class="mb-0">Voltooide Bestellingen</h5>
+      </div>
+      <div class="card-body">
+        {% if completed_orders %}
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+              <tr>
+                  <th>Klant</th>
+                  <th>Deadline</th>
+                  <th>Taaktype</th>
+                  <th>Producttype</th>
+                  <th>Gewicht</th>
+                  <th>Adres</th>
+                  <th>Chauffeur</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for order in completed_orders %}
+                <tr>
+                  <td>
+                    {% if order.customer_name or order.customer_lastname %}
+                      {{ order.customer_name }} {{ order.customer_lastname }}
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if order.deadline %}
+                      <span class="badge bg-info">
+                        {{ order.deadline }}
+                      </span>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td><span class="badge bg-secondary">{{ order.task_type|default('-') }}</span></td>
+                  <td>{{ order.product_type|default('-') }}</td>
+                  <td>
+                    {% if order.Weight %}
+                      <strong>{{ '%.0f'|format(order.Weight) }}</strong> kg
+                    {% elif order.weight %}
+                      <strong>{{ '%.0f'|format(order.weight) }}</strong> kg
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if order.address %}
+                      {{ order.address.street_name }} {{ order.address.house_number }}, {{ order.address.city }}
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% set assigned_driver = None %}
+                    {% if drivers and order.driver_id %}
+                      {% for d in drivers %}
+                        {% if d.id == order.driver_id %}
+                          {% set assigned_driver = d %}
+                        {% endif %}
+                      {% endfor %}
+                    {% endif %}
+                    {% if assigned_driver %}
+                      {{ assigned_driver.name }}
+                    {% else %}
+                      <span class="text-muted">Geen chauffeur</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <span class="badge bg-success">Uitgevoerd</span>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-5">
+            <p class="text-muted mb-0">Er zijn nog geen voltooide bestellingen.</p>
           </div>
         {% endif %}
       </div>

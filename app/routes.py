@@ -89,7 +89,7 @@ def home():
             assigned_routes = []
             
             if driver_id:
-                assigned_result = sb.table('Orders').select('*, Address(*), Companies(*)').eq('driver_id', driver_id).eq('status', 'accepted').order('deadline', desc=False).limit(50).execute()
+                assigned_result = sb.table('Orders').select('*, Address(*), Companies(*)').eq('driver_id', driver_id).in_('status', ['accepted', 'completed']).order('deadline', desc=False).limit(50).execute()
                 
                 if assigned_result.data:
                     for order in assigned_result.data:
@@ -99,7 +99,7 @@ def home():
                             'task_type': order.get('task_type'),
                             'product_type': order.get('product_type'),
                             'created_at': order.get('created_at'),
-                            'status': 'accepted',
+                            'status': order.get('status'),
                             'address': None,
                             'company': None
                         }
@@ -118,10 +118,14 @@ def home():
                             }
                         assigned_routes.append(route_info)
             
-            return render_template('home.html', user_type='driver', assigned_routes=assigned_routes, company_id=company_id, driver_id=driver_id)
+            # Splits routes in actieve en voltooide
+            active_routes = [r for r in assigned_routes if r.get('status') != 'completed']
+            completed_routes = [r for r in assigned_routes if r.get('status') == 'completed']
+            
+            return render_template('home.html', user_type='driver', active_routes=active_routes, completed_routes=completed_routes, company_id=company_id, driver_id=driver_id)
         except Exception as e:
             flash(f"Error loading driver home: {e}", "error")
-            return render_template('home.html', user_type='driver', assigned_routes=[], company_id=None, driver_id=None)
+            return render_template('home.html', user_type='driver', active_routes=[], completed_routes=[], company_id=None, driver_id=None)
     
     # For customers and others, show regular home page
     return render_template('home.html', user_type=user_type)
@@ -487,7 +491,8 @@ def customer_orders():
                     'address': None,
                     'company': None,
                     'driver_id': order.get('driver_id'),
-                    'driver_name': None
+                    'driver_name': None,
+                    'status': order.get('status')
                 }
                 if order.get('Address'):
                     addr = order['Address']
@@ -513,10 +518,14 @@ def customer_orders():
                         pass
                 orders.append(order_info)
         
-        return render_template('customer_orders.html', orders=orders, user_email=customer_email)
+        # Splits orders in actieve en voltooide
+        active_orders = [o for o in orders if o.get('status') != 'completed']
+        completed_orders = [o for o in orders if o.get('status') == 'completed']
+        
+        return render_template('customer_orders.html', active_orders=active_orders, completed_orders=completed_orders, user_email=customer_email)
     except Exception as e:
         flash(f"Fout bij het ophalen van bestellingen: {str(e)}", "error")
-        return render_template('customer_orders.html', orders=[], user_email=session.get('email', ''))
+        return render_template('customer_orders.html', active_orders=[], completed_orders=[], user_email=session.get('email', ''))
 
 
 @bp.route('/customer/orders/<int:order_id>/edit', methods=['GET', 'POST'])
@@ -826,10 +835,14 @@ def company_dashboard():
         # Sorteer bestellingen op prioriteit (urgentste eerst) met het algoritme
         orders = sort_orders_by_priority(orders)
         
-        return render_template('company_dashboard.html', orders=orders, drivers=drivers, user_email=session.get('email', ''))
+        # Splits orders in actieve en voltooide
+        active_orders = [o for o in orders if o.get('status') != 'completed']
+        completed_orders = [o for o in orders if o.get('status') == 'completed']
+        
+        return render_template('company_dashboard.html', active_orders=active_orders, completed_orders=completed_orders, drivers=drivers, user_email=session.get('email', ''))
     except Exception as e:
         flash(f"Fout bij het ophalen van bestellingen: {str(e)}", "error")
-        return render_template('company_dashboard.html', orders=[], drivers=[], user_email=session.get('email', ''))
+        return render_template('company_dashboard.html', active_orders=[], completed_orders=[], drivers=[], user_email=session.get('email', ''))
 
 
 @bp.route('/company/assign-driver/<int:order_id>', methods=['POST'])
@@ -966,7 +979,7 @@ def driver_dashboard():
             return redirect(url_for('routes.driver_select_company'))
         
         # Get accepted routes for this driver (sorted by deadline)
-        orders_result = sb.table('Orders').select('*, Address(*), Companies(*)').eq('driver_id', driver_id).eq('status', 'accepted').order('deadline', desc=False).limit(100).execute()
+        orders_result = sb.table('Orders').select('*, Address(*), Companies(*)').eq('driver_id', driver_id).in_('status', ['accepted', 'completed']).order('deadline', desc=False).limit(100).execute()
         
         orders = []
         if orders_result.data:
@@ -977,6 +990,7 @@ def driver_dashboard():
                     'task_type': order.get('task_type'),
                     'product_type': order.get('product_type'),
                     'created_at': order.get('created_at'),
+                    'status': order.get('status'),
                     'address': None,
                     'company': None
                 }
@@ -997,10 +1011,52 @@ def driver_dashboard():
                     }
                 orders.append(order_info)
         
-        return render_template('driver_dashboard.html', orders=orders, user_email=user_email)
+        # Splits orders in actieve en voltooide
+        active_orders = [o for o in orders if o.get('status') != 'completed']
+        completed_orders = [o for o in orders if o.get('status') == 'completed']
+        
+        return render_template('driver_dashboard.html', active_orders=active_orders, completed_orders=completed_orders, user_email=user_email)
     except Exception as e:
         flash(f"Fout bij het ophalen van ritten: {str(e)}", "error")
-        return render_template('driver_dashboard.html', orders=[], user_email=session.get('email', ''))
+        return render_template('driver_dashboard.html', active_orders=[], completed_orders=[], user_email=session.get('email', ''))
+
+@bp.route('/driver/complete-order/<int:order_id>', methods=['POST'])
+@login_required
+def driver_complete_order(order_id):
+    user_type = session.get('user_type', 'customer')
+    if user_type != 'driver':
+        flash("Je hebt geen toegang tot deze actie.", "error")
+        return redirect(url_for('routes.profile'))
+
+    try:
+        sb = get_authenticated_supabase()
+        driver_email = session.get('email')
+
+        driver_result = sb.table('Drivers').select('id').eq('email_address', driver_email).limit(1).execute()
+        if not driver_result.data or len(driver_result.data) == 0:
+            flash("Chauffeur niet gevonden.", "error")
+            return redirect(url_for('routes.driver_dashboard'))
+
+        driver_id = driver_result.data[0]['id']
+
+        order_result = sb.table('Orders').select('id, driver_id').eq('id', order_id).eq('driver_id', driver_id).limit(1).execute()
+        if not order_result.data or len(order_result.data) == 0:
+            flash("Bestelling niet gevonden of niet aan jou toegewezen.", "error")
+            return redirect(url_for('routes.driver_dashboard'))
+
+        update_result = sb.table('Orders').update({
+            'status': 'completed'
+        }).eq('id', order_id).eq('driver_id', driver_id).execute()
+
+        if update_result.data:
+            flash("Taak gemarkeerd als uitgevoerd!", "success")
+        else:
+            flash("Taak kon niet worden bijgewerkt.", "error")
+
+    except Exception as e:
+        flash(f"Fout bij het markeren van taak: {e}", "error")
+
+    return redirect(url_for('routes.driver_dashboard'))
 
 @bp.route('/logout')
 def logout():
