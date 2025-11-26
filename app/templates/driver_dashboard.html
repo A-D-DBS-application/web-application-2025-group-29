@@ -63,10 +63,10 @@
                       Navigeer naar Google Maps
                     </a>
                     {% if order.status != 'completed' %}
-                    <form method="POST" action="{{ url_for('routes.driver_complete_order', order_id=order.id) }}" onsubmit="return confirm('Weet je zeker dat je deze taak als uitgevoerd wilt markeren?');">
-                      <button type="submit" class="btn btn-dark w-100">
+                    <form method="POST" action="{{ url_for('routes.driver_complete_order', order_id=order.id) }}">
+                        <button type="submit" class="btn btn-dark w-100">
                         Taak voltooien
-                      </button>
+                        </button>
                     </form>
                     {% else %}
                     <span class="badge bg-light text-dark border w-100 p-2 text-center">Uitgevoerd</span>

@@ -265,15 +265,7 @@ def signup():
                 }).execute()
                 
                 if company_result.data and len(company_result.data) > 0:
-                    try:
-                        company_id = company_result.data[0]['id']
-                        sb.table('Farmer').insert({
-                            "emailadress": username,
-                            "created_at": datetime.utcnow().isoformat(),
-                            "company_id": company_id
-                        }).execute()
-                    except Exception:
-                        pass
+                    pass
 
             elif user_type == 'driver':
                 existing = sb.table('Drivers').select('id').eq('email_address', username).limit(1).execute()
