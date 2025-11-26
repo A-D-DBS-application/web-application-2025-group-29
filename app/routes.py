@@ -114,7 +114,6 @@ def home():
                 # Get routes assigned to this driver (by company)
                 assigned_result = sb.table('Orders').select('*, Address(*), Companies(*)').eq('driver_id', driver_id).eq('status', 'accepted').order('deadline', desc=False).limit(50).execute()
                 
-                
                 if assigned_result.data:
                     for order in assigned_result.data:
                         route_info = {
@@ -209,7 +208,7 @@ def login():
             session.clear()
             session['email'] = username
             session['user_type'] = user_type
-
+            
             if client_id is not None:
                 session['client_id'] = client_id
             if company_id is not None:
@@ -217,9 +216,9 @@ def login():
             if driver_id is not None:
                 session['driver_id'] = driver_id
             if first_name:
-                session['first_name'] = first_name
+                        session['first_name'] = first_name
             if last_name:
-                session['last_name'] = last_name
+                        session['last_name'] = last_name
 
             session.modified = True
 
@@ -231,7 +230,7 @@ def login():
                 return redirect(url_for('routes.driver_dashboard'))
             else:
                 return redirect(url_for('routes.profile'))
-
+            
         except Exception as e:
             import traceback
             print(f"Login error (username-only): {e}")
@@ -248,16 +247,16 @@ def signup():
     user_type = request.args.get('user_type') or request.form.get('user_type') or 'customer'
     if user_type not in ['company', 'customer', 'driver']:
         user_type = 'customer'
-
+    
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         first_name = request.form.get('first_name', '').strip()
         last_name = request.form.get('last_name', '').strip()
-
+        
         if not username:
             flash("Gebruikersnaam is verplicht.", "error")
             return render_template('signup.html', user_type=user_type)
-
+        
         if not first_name:
             flash("Voornaam is verplicht.", "error")
             return render_template('signup.html', user_type=user_type)
@@ -269,7 +268,7 @@ def signup():
             if supabase is None:
                 flash("Supabase is niet geconfigureerd. Neem contact op met de beheerder.", "error")
                 return render_template('signup.html', user_type=user_type)
-
+            
             sb = get_authenticated_supabase()
 
             if user_type == 'customer':
@@ -278,14 +277,14 @@ def signup():
                 if existing.data and len(existing.data) > 0:
                     flash("Er bestaat al een klant met deze gebruikersnaam. Log in zonder wachtwoord.", "info")
                     return redirect(url_for('routes.login', user_type=user_type))
-
+                    
                 sb.table('Client').insert({
                     "emailaddress": username,
                     "Name": first_name,
                     "Lastname": last_name,
                     "created_at": datetime.utcnow().isoformat()
                 }).execute()
-
+                            
             elif user_type == 'company':
                 existing = sb.table('Companies').select('id').eq('emailaddress', username).limit(1).execute()
                 if existing.data and len(existing.data) > 0:
@@ -297,7 +296,7 @@ def signup():
                     "emailaddress": username,
                     "created_at": datetime.utcnow().isoformat()
                 }).execute()
-
+                
                 # Optioneel: ook een Farmer-record aanmaken (maar laat registratie niet falen als tabel ontbreekt)
                 if company_result.data and len(company_result.data) > 0:
                     try:
@@ -352,7 +351,9 @@ def profile():
         "user_type": user_type
     }
     
-    # For customers, add name information
+    addresses = []
+    
+    # For customers, add name information and fetch addresses
     if user_type == 'customer':
         first_name = session.get('first_name', '')
         last_name = session.get('last_name', '')
@@ -379,7 +380,132 @@ def profile():
             except Exception as e:
                 print(f"Warning: Could not get client name: {e}")
     
-    return render_template('profile.html', user=user_ctx)
+        # Fetch addresses for customer
+        try:
+            sb = get_authenticated_supabase()
+            client_id = session.get('client_id')
+            if not client_id:
+                # Try to get client_id from email
+                customer_email = session.get('email')
+                if customer_email:
+                    client_result = sb.table('Client').select('id').eq('emailaddress', customer_email).limit(1).execute()
+                    if client_result.data and len(client_result.data) > 0:
+                        client_id = client_result.data[0]['id']
+                        session['client_id'] = client_id
+            
+            if client_id:
+                addresses_result = sb.table('Address').select('*').eq('client_id', client_id).order('created_at', desc=False).execute()
+                if addresses_result.data:
+                    addresses = addresses_result.data
+        except Exception as e:
+            flash(f"Warning: Kon adressen niet ophalen: {e}", "error")
+    
+    return render_template('profile.html', user=user_ctx, addresses=addresses)
+
+
+@bp.route('/profile/add-address', methods=['POST'])
+@login_required
+def add_address():
+    user_type = session.get('user_type', 'customer')
+    if user_type != 'customer':
+        flash("Je hebt geen toegang tot deze pagina.", "error")
+        return redirect(url_for('routes.profile'))
+    
+    try:
+        sb = get_authenticated_supabase()
+        client_id = session.get('client_id')
+        if not client_id:
+            # Try to get client_id from email
+            customer_email = session.get('email')
+            if customer_email:
+                client_result = sb.table('Client').select('id').eq('emailaddress', customer_email).limit(1).execute()
+                if client_result.data and len(client_result.data) > 0:
+                    client_id = client_result.data[0]['id']
+                    session['client_id'] = client_id
+        
+        if not client_id:
+            flash("Klant niet gevonden.", "error")
+            return redirect(url_for('routes.profile'))
+        
+        # Check if customer already has 3 addresses
+        addresses_result = sb.table('Address').select('id').eq('client_id', client_id).execute()
+        if addresses_result.data and len(addresses_result.data) >= 3:
+            flash("Je hebt al het maximum aantal adressen (3). Verwijder eerst een adres.", "error")
+            return redirect(url_for('routes.profile'))
+        
+        house_number_raw = request.form.get("house_number")
+        try:
+            house_number_val = int(house_number_raw) if house_number_raw is not None else None
+        except ValueError:
+            house_number_val = None
+        
+        address_data = {
+            "client_id": client_id,
+            "street_name": request.form.get("street_name"),
+            "house_number": house_number_val,
+            "city": request.form.get("city"),
+            "phone_number": request.form.get("phone_number")
+        }
+        
+        address_result = sb.table('Address').insert(address_data).execute()
+        
+        if address_result.data:
+            flash("Adres succesvol toegevoegd!", "success")
+        else:
+            flash("Adres kon niet worden toegevoegd.", "error")
+    except Exception as e:
+        flash(f"Fout bij het toevoegen van adres: {str(e)}", "error")
+    
+    return redirect(url_for('routes.profile'))
+
+
+@bp.route('/profile/delete-address/<int:address_id>', methods=['POST'])
+@login_required
+def delete_address(address_id):
+    user_type = session.get('user_type', 'customer')
+    if user_type != 'customer':
+        flash("Je hebt geen toegang tot deze pagina.", "error")
+        return redirect(url_for('routes.profile'))
+    
+    try:
+        sb = get_authenticated_supabase()
+        client_id = session.get('client_id')
+        if not client_id:
+            # Try to get client_id from email
+            customer_email = session.get('email')
+            if customer_email:
+                client_result = sb.table('Client').select('id').eq('emailaddress', customer_email).limit(1).execute()
+                if client_result.data and len(client_result.data) > 0:
+                    client_id = client_result.data[0]['id']
+                    session['client_id'] = client_id
+        
+        if not client_id:
+            flash("Klant niet gevonden.", "error")
+            return redirect(url_for('routes.profile'))
+        
+        # Verify that the address belongs to this client
+        address_result = sb.table('Address').select('client_id').eq('id', address_id).eq('client_id', client_id).limit(1).execute()
+        if not address_result.data or len(address_result.data) == 0:
+            flash("Adres niet gevonden of je hebt geen toegang tot dit adres.", "error")
+            return redirect(url_for('routes.profile'))
+        
+        # Check if address is used in any orders
+        orders_result = sb.table('Orders').select('id').eq('address_id', address_id).limit(1).execute()
+        if orders_result.data and len(orders_result.data) > 0:
+            flash("Dit adres kan niet worden verwijderd omdat het gebruikt wordt in een bestelling.", "error")
+            return redirect(url_for('routes.profile'))
+        
+        # Delete address
+        delete_result = sb.table('Address').delete().eq('id', address_id).eq('client_id', client_id).execute()
+        
+        if delete_result.data:
+            flash("Adres succesvol verwijderd!", "success")
+        else:
+            flash("Adres kon niet worden verwijderd.", "error")
+    except Exception as e:
+        flash(f"Fout bij het verwijderen van adres: {str(e)}", "error")
+    
+    return redirect(url_for('routes.profile'))
 
 
 @bp.route('/customer/orders')
@@ -459,6 +585,7 @@ def edit_order(order_id):
     
     try:
         # Get the order and verify it belongs to the current customer
+        # First try by customer_email, then verify via address -> client_id
         order_result = sb.table('Orders').select('*, Address(*), Companies(*)').eq('id', order_id).eq('customer_email', customer_email).limit(1).execute()
         
         if not order_result.data or len(order_result.data) == 0:
@@ -466,6 +593,27 @@ def edit_order(order_id):
             return redirect(url_for('routes.customer_orders'))
         
         order_data = order_result.data[0]
+        
+        # Additional verification: check if address belongs to this customer
+        address_id = order_data.get('address_id')
+        if address_id:
+            try:
+                # Get client_id from session
+                client_id = session.get('client_id')
+                if not client_id:
+                    client_result = sb.table('Client').select('id').eq('emailaddress', customer_email).limit(1).execute()
+                    if client_result.data and len(client_result.data) > 0:
+                        client_id = client_result.data[0]['id']
+                        session['client_id'] = client_id
+                
+                if client_id:
+                    # Verify address belongs to this client
+                    address_check = sb.table('Address').select('client_id').eq('id', address_id).eq('client_id', client_id).limit(1).execute()
+                    if not address_check.data or len(address_check.data) == 0:
+                        flash("Bestelling niet gevonden of je hebt geen toegang tot deze bestelling.", "error")
+                        return redirect(url_for('routes.customer_orders'))
+            except Exception as e:
+                print(f"Warning: Could not verify address ownership: {e}")
         
         # Check if order is assigned to a driver - if so, prevent editing
         driver_id = order_data.get('driver_id')
@@ -527,15 +675,19 @@ def edit_order(order_id):
         
         if request.method == 'POST':
             try:
-                # Get farmer_id from Supabase Farmer table (if exists)
-                farmer_id = None
-                if session.get('email'):
-                    try:
-                        farmer_result = sb.table('Farmer').select('id').eq('emailadress', session['email']).limit(1).execute()
-                        if farmer_result.data and len(farmer_result.data) > 0:
-                            farmer_id = farmer_result.data[0]['id']
-                    except Exception:
-                        pass  # Farmer may not exist yet, that's okay
+                # Get client_id for the customer
+                client_id = session.get('client_id')
+                if not client_id:
+                    customer_email = session.get('email')
+                    if customer_email:
+                        client_result = sb.table('Client').select('id').eq('emailaddress', customer_email).limit(1).execute()
+                        if client_result.data and len(client_result.data) > 0:
+                            client_id = client_result.data[0]['id']
+                            session['client_id'] = client_id
+                
+                if not client_id:
+                    flash("Klant niet gevonden.", "error")
+                    return render_template('edit_order.html', order=order_info, companies=companies)
                 
                 # Coerce house_number to integer if possible
                 house_number_raw = request.form.get("house_number")
@@ -546,18 +698,23 @@ def edit_order(order_id):
                 
                 # Update address via Supabase REST API
                 address_update_data = {
-                    "farmer_id": farmer_id,
+                    "client_id": client_id,
                     "street_name": request.form.get("street_name"),
                     "house_number": house_number_val,
                     "city": request.form.get("city"),
                     "phone_number": request.form.get("phone_number")
                 }
                 
-                # Update the existing address
+                # Update the existing address - verify it belongs to this client
                 if order_info['address_id']:
-                    address_update_result = sb.table('Address').update(address_update_data).eq('id', order_info['address_id']).execute()
+                    address_check = sb.table('Address').select('client_id').eq('id', order_info['address_id']).eq('client_id', client_id).limit(1).execute()
+                    if address_check.data and len(address_check.data) > 0:
+                        address_update_result = sb.table('Address').update(address_update_data).eq('id', order_info['address_id']).eq('client_id', client_id).execute()
+                    else:
+                        flash("Adres kan niet worden bijgewerkt omdat het niet aan jou toebehoort.", "error")
+                        return render_template('edit_order.html', order=order_info, companies=companies)
                 else:
-                    # If no address_id, create a new address (shouldn't happen, but handle it)
+                    # If no address_id, create a new address
                     address_result = sb.table('Address').insert(address_update_data).execute()
                     if address_result.data and len(address_result.data) > 0:
                         order_info['address_id'] = address_result.data[0]['id']
@@ -685,23 +842,27 @@ def company_dashboard():
                         'phone_number': addr.get('phone_number')
                     }
                 
-                # Get customer name from Client table
-                # Try client_id first (more reliable), then fall back to customer_email
-                client_id = order.get('client_id')
+                # Get customer name from Client table via address_id -> Address -> client_id
+                address_id = order.get('address_id')
                 customer_email = order.get('customer_email')
+                client_id = None
                 
-                # If order doesn't have client_id but has customer_email, try to link it
+                # Get client_id via address
+                if address_id:
+                    try:
+                        # Get address and extract client_id
+                        address_result = sb.table('Address').select('client_id').eq('id', address_id).limit(1).execute()
+                        if address_result.data and len(address_result.data) > 0:
+                            client_id = address_result.data[0].get('client_id')
+                    except Exception as e:
+                        print(f"Warning: Could not get client_id from address {address_id}: {e}")
+                
+                # If we still don't have client_id, try customer_email as fallback
                 if not client_id and customer_email:
                     try:
-                        # Find client by email and get their ID
                         client_lookup = sb.table('Client').select('id').eq('emailaddress', customer_email).limit(1).execute()
                         if client_lookup.data and len(client_lookup.data) > 0:
                             client_id = client_lookup.data[0]['id']
-                            # Update the order to link it to the client
-                            try:
-                                sb.table('Orders').update({'client_id': client_id}).eq('id', order_info['id']).execute()
-                            except Exception as update_error:
-                                pass
                     except Exception as e:
                         print(f"Warning: Could not find client for email {customer_email}: {e}")
                 
@@ -972,52 +1133,68 @@ def order():
         traceback.print_exc()
         flash("Kon bedrijven niet ophalen. Probeer het later opnieuw.", "error")
     
+    # Get customer addresses
+    addresses = []
+    try:
+        client_id = session.get('client_id')
+        if not client_id:
+            # Try to get client_id from email
+            customer_email = session.get('email')
+            if customer_email:
+                client_result = sb.table('Client').select('id').eq('emailaddress', customer_email).limit(1).execute()
+                if client_result.data and len(client_result.data) > 0:
+                    client_id = client_result.data[0]['id']
+                    session['client_id'] = client_id
+        
+        if client_id:
+            addresses_result = sb.table('Address').select('*').eq('client_id', client_id).order('created_at', desc=False).execute()
+            if addresses_result.data:
+                addresses = addresses_result.data
+    except Exception as e:
+        flash(f"Warning: Kon adressen niet ophalen: {e}", "error")
+    
     if request.method == 'POST':
         try:
-            # Get farmer_id from Supabase Farmer table (if exists) - works over HTTPS
-            farmer_id = None
-            if session.get('email'):
-                try:
-                    farmer_result = sb.table('Farmer').select('id').eq('emailadress', session['email']).limit(1).execute()
-                    if farmer_result.data and len(farmer_result.data) > 0:
-                        farmer_id = farmer_result.data[0]['id']
-                except Exception:
-                    pass  # Farmer may not exist yet, that's okay
-
-            # Coerce house_number to integer if possible
-            house_number_raw = request.form.get("house_number")
-            try:
-                house_number_val = int(house_number_raw) if house_number_raw is not None else None
-            except ValueError:
-                house_number_val = None
-
-            # Create address via Supabase REST API (works over HTTPS, no direct DB needed)
-            address_data = {
-                "farmer_id": farmer_id,
-                "street_name": request.form.get("street_name"),
-                "house_number": house_number_val,
-                "city": request.form.get("city"),
-                "phone_number": request.form.get("phone_number")
-            }
-            address_result = sb.table('Address').insert(address_data).execute()
+            # Get address_id from form (selected from customer's addresses)
+            address_id_str = request.form.get("address_id")
             
-            if not address_result.data or len(address_result.data) == 0:
-                flash("Adres kon niet worden aangemaakt.", "error")
-                return render_template('order.html', companies=companies)
-
-            address_id = address_result.data[0]['id']
+            if address_id_str:
+                # Use existing address
+                try:
+                    address_id = int(address_id_str)
+                    # Verify that the address belongs to this customer
+                    client_id = session.get('client_id')
+                    if not client_id:
+                        customer_email = session.get('email')
+                        if customer_email:
+                            client_result = sb.table('Client').select('id').eq('emailaddress', customer_email).limit(1).execute()
+                            if client_result.data and len(client_result.data) > 0:
+                                client_id = client_result.data[0]['id']
+                                session['client_id'] = client_id
+                    
+                    if client_id:
+                        address_check = sb.table('Address').select('id').eq('id', address_id).eq('client_id', client_id).limit(1).execute()
+                        if not address_check.data or len(address_check.data) == 0:
+                            flash("Ongeldig adres geselecteerd.", "error")
+                            return render_template('order.html', companies=companies, addresses=addresses)
+                except (ValueError, TypeError):
+                    flash("Ongeldig adres geselecteerd.", "error")
+                    return render_template('order.html', companies=companies, addresses=addresses)
+            else:
+                flash("Selecteer een adres of voeg eerst een adres toe in je profiel.", "error")
+                return render_template('order.html', companies=companies, addresses=addresses)
 
             # Get company_id from form (required field)
             company_id = request.form.get("company_id")
             if not company_id:
                 flash("Bedrijf is verplicht. Selecteer een bedrijf.", "error")
-                return render_template('order.html', companies=companies)
+                return render_template('order.html', companies=companies, addresses=addresses)
             
             try:
                 company_id = int(company_id)
             except (ValueError, TypeError):
                 flash("Ongeldig bedrijf geselecteerd.", "error")
-                return render_template('order.html', companies=companies)
+                return render_template('order.html', companies=companies, addresses=addresses)
             
             # Get weight from form and convert to float
             weight = None
@@ -1027,11 +1204,11 @@ def order():
                     weight = float(weight_str)
                 except (ValueError, TypeError):
                     flash("Ongeldig gewicht. Voer een geldig getal in.", "error")
-                    return render_template('order.html', companies=companies)
+                    return render_template('order.html', companies=companies, addresses=addresses)
             
             if weight is None or weight <= 0:
                 flash("Gewicht is verplicht en moet groter zijn dan 0.", "error")
-                return render_template('order.html', companies=companies)
+                return render_template('order.html', companies=companies, addresses=addresses)
             
             # Get or create client_id for the customer
             client_id = session.get('client_id')
@@ -1063,16 +1240,15 @@ def order():
                     print(f"Warning: Could not get/create client_id: {e}")
             
             # Create order via Supabase REST API
-            # Link to Client table via client_id
-            # Also keep customer_email for backward compatibility and filtering
+            # Link to Client via address_id -> Address -> client_id
+            # Keep customer_email for filtering
             order_data = {
                 "deadline": request.form.get("deadline"),
                 "task_type": request.form.get("task_type"),
                 "product_type": request.form.get("product_type"),
                 "address_id": address_id,
                 "company_id": company_id,
-                "customer_email": session.get('email'),  # Keep for backward compatibility
-                "client_id": client_id,  # Link to Client table
+                "customer_email": session.get('email'),  # Keep for filtering
                 "status": "pending",  # Explicitly set status to pending for driver visibility
                 "Weight": weight  # Store weight in kilograms
             }
@@ -1086,6 +1262,6 @@ def order():
                 flash("Bestelling kon niet worden geplaatst.", "error")
         except Exception as e:
             flash(f"Fout bij het plaatsen van bestelling: {str(e)}", "error")
-            return render_template('order.html', companies=companies)
+            return render_template('order.html', companies=companies, addresses=addresses)
 
-    return render_template('order.html', companies=companies)
+    return render_template('order.html', companies=companies, addresses=addresses)

@@ -66,23 +66,26 @@
             {% endif %}
           </div>
           <div class="col-12 mt-3">
-            <h5 class="mb-2">Adresgegevens</h5>
-          </div>
-          <div class="col-md-8">
-            <label class="form-label">Straat</label>
-            <input type="text" name="street_name" class="form-control" placeholder="Straatnaam" required>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Huisnummer</label>
-            <input type="text" name="house_number" class="form-control" placeholder="Nr." required>
-          </div>
-          <div class="col-md-8">
-            <label class="form-label">Stad</label>
-            <input type="text" name="city" class="form-control" placeholder="Gemeente/Stad" required>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Telefoon</label>
-            <input type="text" name="phone_number" class="form-control" placeholder="Contactnummer" required>
+            <h5 class="mb-2">Adres</h5>
+            {% if addresses and addresses|length > 0 %}
+            <div class="mb-3">
+              <label class="form-label">Selecteer een adres</label>
+              <select name="address_id" class="form-select" required>
+                <option value="" selected disabled>Kies een adres</option>
+                {% for address in addresses %}
+                <option value="{{ address.id }}">
+                  {{ address.street_name }} {{ address.house_number }}, {{ address.city }} (Tel: {{ address.phone_number }})
+                </option>
+                {% endfor %}
+              </select>
+              <small class="text-muted">Je kunt adressen beheren in je <a href="{{ url_for('routes.profile') }}">profiel</a>.</small>
+            </div>
+            {% else %}
+            <div class="alert alert-warning">
+              <strong>Geen adressen gevonden!</strong> 
+              Voeg eerst een adres toe in je <a href="{{ url_for('routes.profile') }}">profiel</a> voordat je een bestelling plaatst.
+            </div>
+            {% endif %}
           </div>
           <div class="col-12 d-grid d-md-flex justify-content-md-end">
             <button class="btn btn-success" type="submit">Verstuur bestelling</button>
