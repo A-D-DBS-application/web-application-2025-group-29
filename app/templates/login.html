@@ -17,69 +17,21 @@
           </div>
         </form>
         <script>
-          // Bootstrap form validation with better error handling
           (function() {
             'use strict';
-            try {
-              const form = document.getElementById('loginForm');
-              const submitBtn = document.getElementById('submitBtn');
-              
-              if (!form || !submitBtn) {
-                console.error('ERROR: Form or submit button not found!');
-                return;
-              }
-              
-              // Debug logging
-              console.log('Login form initialized');
-              
+            const form = document.getElementById('loginForm');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            if (form && submitBtn) {
               form.addEventListener('submit', function(event) {
-                try {
-                  console.log('Form submit triggered');
-                  
-                  // Check form validity
-                  if (!form.checkValidity()) {
-                    console.log('Form validation failed - showing validation errors');
-                    event.preventDefault();
-                    event.stopPropagation();
-                    form.classList.add('was-validated');
-                    
-                    // Show which fields are invalid
-                    const invalidFields = form.querySelectorAll(':invalid');
-                    console.log('Invalid fields:', invalidFields.length);
-                    invalidFields.forEach(function(field) {
-                      console.log('Invalid field:', field.name, field.validationMessage);
-                    });
-                    
-                    return false;
-                  }
-                  
-                  // Form is valid, show loading state
-                  console.log('Form is valid, submitting to server...');
-                  submitBtn.disabled = true;
-                  submitBtn.textContent = 'Inloggen...';
-                  
-                  // Allow form to submit normally - don't prevent default
-                  form.classList.add('was-validated');
-                  
-                  // Log form data for debugging
-                  const formData = new FormData(form);
-                  console.log('Submitting form with data:');
-                  for (let [key, value] of formData.entries()) {
-                    console.log(`  ${key}: ${value || '(empty)'}`);
-                  }
-                  
-                } catch (e) {
-                  console.error('ERROR in form submit handler:', e);
-                  alert('Er is een fout opgetreden bij het verzenden van het formulier. Check de console voor details.');
-                  submitBtn.disabled = false;
-                  submitBtn.textContent = 'Inloggen';
+                if (!form.checkValidity()) {
                   event.preventDefault();
+                  event.stopPropagation();
                 }
+                form.classList.add('was-validated');
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Inloggen...';
               }, false);
-              
-            } catch (e) {
-              console.error('ERROR initializing login form:', e);
-              alert('Er is een fout opgetreden bij het laden van het inlogformulier. Check de console voor details.');
             }
           })();
         </script>

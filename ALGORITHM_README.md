@@ -68,7 +68,5 @@ Mogelijke verbeteringen (niet geïmplementeerd):
 - Historische performance data (welke chauffeur is het beste voor welk type taak)
 - Machine learning voor betere voorspellingen (als meer data beschikbaar is)
 
-## Documentatie
 
-Het algoritme is volledig gedocumenteerd met docstrings en comments in het Nederlands, passend bij de doelgroep (handelsingenieurs).
 
