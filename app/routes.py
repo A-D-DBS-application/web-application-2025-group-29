@@ -424,7 +424,9 @@ def customer_orders():
                     'product_type': order.get('product_type'),
                     'created_at': order.get('created_at'),
                     'address': None,
-                    'company': None
+                    'company': None,
+                    'driver_id': order.get('driver_id'),
+                    'driver_name': None
                 }
                 # Get address if available
                 if order.get('Address'):
@@ -442,6 +444,15 @@ def customer_orders():
                         'name': company.get('name'),
                         'id': company.get('id')
                     }
+                # Get driver name if assigned
+                driver_id = order.get('driver_id')
+                if driver_id:
+                    try:
+                        driver_result = sb.table('Drivers').select('name').eq('id', driver_id).limit(1).execute()
+                        if driver_result.data and len(driver_result.data) > 0:
+                            order_info['driver_name'] = driver_result.data[0].get('name', 'Onbekend')
+                    except Exception as e:
+                        print(f"Warning: Could not get driver name for driver_id {driver_id}: {e}")
                 orders.append(order_info)
         
         return render_template('customer_orders.html', orders=orders, user_email=customer_email)
@@ -471,6 +482,20 @@ def edit_order(order_id):
             return redirect(url_for('routes.customer_orders'))
         
         order_data = order_result.data[0]
+        
+        # Check if order is assigned to a driver - if so, prevent editing
+        driver_id = order_data.get('driver_id')
+        if driver_id:
+            # Get driver name for error message
+            driver_name = "een chauffeur"
+            try:
+                driver_result = sb.table('Drivers').select('name').eq('id', driver_id).limit(1).execute()
+                if driver_result.data and len(driver_result.data) > 0:
+                    driver_name = driver_result.data[0].get('name', 'een chauffeur')
+            except Exception:
+                pass
+            flash(f"Deze bestelling kan niet meer bewerkt worden omdat deze is toegewezen aan {driver_name}.", "error")
+            return redirect(url_for('routes.customer_orders'))
         
         # Get all companies for the dropdown
         companies = []

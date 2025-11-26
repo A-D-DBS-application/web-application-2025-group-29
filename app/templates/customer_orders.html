@@ -23,6 +23,7 @@
                 <th scope="col">Taaktype</th>
                 <th scope="col">Producttype</th>
                 <th scope="col">Adres</th>
+                <th scope="col">Chauffeur</th>
                 <th scope="col">Geplaatst op</th>
                 <th scope="col">Acties</th>
               </tr>
@@ -60,6 +61,13 @@
                   {% endif %}
                 </td>
                 <td>
+                  {% if order.driver_name %}
+                    <span class="badge bg-warning text-dark">🚚 {{ order.driver_name }}</span>
+                  {% else %}
+                    <span class="text-muted">Nog niet toegewezen</span>
+                  {% endif %}
+                </td>
+                <td>
                   {% if order.created_at %}
                     {{ order.created_at[:10] }}
                   {% else %}
@@ -67,9 +75,14 @@
                   {% endif %}
                 </td>
                 <td>
-                  <a href="{{ url_for('routes.edit_order', order_id=order.id) }}" class="btn btn-sm btn-outline-primary">
-                    ✏️ Bewerken
-                  </a>
+                  {% if order.driver_id %}
+                    <span class="text-muted small">Niet bewerkbaar</span>
+                    <br><small class="text-muted">Toegewezen aan chauffeur</small>
+                  {% else %}
+                    <a href="{{ url_for('routes.edit_order', order_id=order.id) }}" class="btn btn-sm btn-outline-primary">
+                      ✏️ Bewerken
+                    </a>
+                  {% endif %}
                 </td>
               </tr>
               {% endfor %}
