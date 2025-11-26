@@ -350,14 +350,18 @@ def signup():
                     "created_at": datetime.utcnow().isoformat()
                 }).execute()
 
-                # Optioneel: ook een Farmer-record aanmaken
+                # Optioneel: ook een Farmer-record aanmaken (maar laat registratie niet falen als tabel ontbreekt)
                 if company_result.data and len(company_result.data) > 0:
-                    company_id = company_result.data[0]['id']
-                    sb.table('Farmer').insert({
-                        "emailadress": username,
-                        "created_at": datetime.utcnow().isoformat(),
-                        "company_id": company_id
-                    }).execute()
+                    try:
+                        company_id = company_result.data[0]['id']
+                        sb.table('Farmer').insert({
+                            "emailadress": username,
+                            "created_at": datetime.utcnow().isoformat(),
+                            "company_id": company_id
+                        }).execute()
+                    except Exception as e:
+                        # Log alleen; registratie van bedrijf mag gewoon doorgaan
+                        print(f"Kon Farmer-record niet aanmaken, ga verder zonder: {e}")
 
             elif user_type == 'driver':
                 existing = sb.table('Drivers').select('id').eq('email_address', username).limit(1).execute()
