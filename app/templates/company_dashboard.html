@@ -25,10 +25,12 @@
             <table class="table table-hover">
               <thead>
               <tr>
+                  <th>Prioriteit</th>
                   <th>Klant</th>
                   <th>Deadline</th>
                   <th>Taaktype</th>
                   <th>Producttype</th>
+                  <th>Gewicht</th>
                   <th>Adres</th>
                   <th>Telefoon</th>
                   <th>Chauffeur</th>
@@ -39,6 +41,16 @@
               <tbody>
                 {% for order in orders %}
                 <tr>
+                  <td>
+                    {% if order.priority_score is defined %}
+                      <span class="badge bg-{% if order.priority_score >= 70 %}danger{% elif order.priority_score >= 50 %}warning text-dark{% elif order.priority_score >= 30 %}info{% else %}secondary{% endif %}" title="Prioriteitsscore: {{ '%.1f'|format(order.priority_score) }}/100">
+                        {% if order.priority_score >= 70 %}🔴{% elif order.priority_score >= 50 %}🟡{% elif order.priority_score >= 30 %}🔵{% else %}⚪{% endif %}
+                        {{ '%.0f'|format(order.priority_score) }}
+                      </span>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
                   <td>
                     {% if order.customer_name or order.customer_lastname %}
                       {{ order.customer_name }} {{ order.customer_lastname }}
@@ -57,6 +69,15 @@
                   </td>
                   <td><span class="badge bg-secondary">{{ order.task_type|default('-') }}</span></td>
                   <td>{{ order.product_type|default('-') }}</td>
+                  <td>
+                    {% if order.Weight %}
+                      <strong>{{ '%.0f'|format(order.Weight) }}</strong> kg
+                    {% elif order.weight %}
+                      <strong>{{ '%.0f'|format(order.weight) }}</strong> kg
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
                   <td>
                     {% if order.address %}
                       {{ order.address.street_name }} {{ order.address.house_number }}, {{ order.address.city }}
@@ -101,13 +122,25 @@
                       <select name="driver_id" class="form-select form-select-sm" style="min-width: 150px;">
                         <option value="">— kies chauffeur —</option>
                         {% for d in drivers %}
-                          <option value="{{ d.id }}" {% if order.driver_id and d.id == order.driver_id %}selected{% endif %}>
-                            {{ d.name }}
+                          <option value="{{ d.id }}" 
+                            {% if order.suggested_driver and order.suggested_driver.driver_id == d.id %}style="background-color: #d4edda; font-weight: bold;"{% endif %}
+                            {% if order.driver_id and d.id == order.driver_id %}selected{% endif %}>
+                            {{ d.name }}{% if order.suggested_driver and order.suggested_driver.driver_id == d.id %} ⭐ (Aanbevolen: {{ order.suggested_driver.reason }}){% endif %}
                           </option>
                         {% endfor %}
                       </select>
                       <button type="submit" class="btn btn-sm btn-success">Toewijzen</button>
                     </form>
+                    {% if order.suggested_driver %}
+                      <small class="text-success d-block mt-1">
+                        💡 Algoritme suggestie: {{ order.suggested_driver.driver_name }} ({{ order.suggested_driver.reason }})
+                      </small>
+                    {% endif %}
+                    {% if order.estimated_time_hours %}
+                      <small class="text-muted d-block mt-1">
+                        ⏱️ Geschatte tijd: {{ '%.1f'|format(order.estimated_time_hours) }} uur
+                      </small>
+                    {% endif %}
                     {% else %}
                       <span class="text-muted small">Geen chauffeurs beschikbaar</span>
                       <br>

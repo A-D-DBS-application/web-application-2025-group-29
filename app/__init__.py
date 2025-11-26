@@ -1,8 +1,5 @@
-from flask import Flask, session, request
-from flask_sqlalchemy import SQLAlchemy
+from flask import Flask, session
 from .config import Config
-
-db = SQLAlchemy()
 
 def create_app():
     app = Flask(__name__)
@@ -14,14 +11,12 @@ def create_app():
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SECURE'] = False  # False for localhost (http://)
-    app.config['PERMANENT_SESSION_LIFETIME'] = 86400  #24 hours
+    app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 hours
     
     # Ensure cookies work across browsers (especially Safari)
     app.config['SESSION_COOKIE_NAME'] = 'agriflow_session'
     app.config['SESSION_COOKIE_PATH'] = '/'
     app.config['SESSION_COOKIE_DOMAIN'] = None  # None for localhost
-    
-    db.init_app(app)
 
     # Middleware to ensure session is permanent (helps with Safari)
     @app.before_request

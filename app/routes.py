@@ -1,13 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, g
 from datetime import datetime
-import re
 from .config import supabase, Config
+from .algorithms import calculate_priority_score, suggest_best_driver, sort_orders_by_priority, calculate_driver_workload_hours, calculate_order_time_hours
 bp = Blueprint('routes', __name__)
-
-def validate_email(email):
-    """Validate email format"""
-    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    return re.match(pattern, email) is not None
 
 def get_authenticated_supabase():
     """
@@ -119,7 +114,6 @@ def home():
                 # Get routes assigned to this driver (by company)
                 assigned_result = sb.table('Orders').select('*, Address(*), Companies(*)').eq('driver_id', driver_id).eq('status', 'accepted').order('deadline', desc=False).limit(50).execute()
                 
-                print(f"✅ Found {len(assigned_result.data) if assigned_result.data else 0} assigned routes for driver {driver_id}")
                 
                 if assigned_result.data:
                     for order in assigned_result.data:
@@ -159,19 +153,10 @@ def home():
     return render_template('home.html', user_type=user_type)
 
 
-@bp.route('/debug-login')
-def debug_login():
-    """Debug page to test login form submission"""
-    return render_template('debug_login.html')
-
-
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
     # Debug logging
-    print(f"Login route called - Method: {request.method}")
-    
     if request.method == 'POST':
-        print(f"POST request received - Form data: {dict(request.form)}")
         # Gebruikersnaam die we in de emailaddress/email_address kolommen opslaan
         username = request.form.get('username', '').strip()
 
@@ -182,7 +167,6 @@ def login():
 
         try:
             if supabase is None:
-                print("ERROR: Supabase client is None!")
                 flash("Supabase is niet geconfigureerd. Neem contact op met de beheerder.", "error")
                 return render_template('login.html')
 
@@ -652,13 +636,32 @@ def company_dashboard():
         drivers_result = sb.table('Drivers').select('id, name, email_address').eq('company_id', company_id).order('name').execute()
         drivers = drivers_result.data if drivers_result.data else []
         
-        # Get only orders for this company (filtered by company_id)
-        # Use * to get all fields including customer_email and client_id
+        # Get all orders first (nodig voor workload berekening)
         orders_result = sb.table('Orders').select('*, Address(*)').eq('company_id', company_id).order('created_at', desc=True).limit(100).execute()
+        all_orders_raw = orders_result.data if orders_result.data else []
+        
+        # Bereken workload per chauffeur in uren (niet aantal taken)
+        driver_workload_hours = {}
+        if drivers and all_orders_raw:
+            # Converteer orders naar dict formaat voor algoritme
+            orders_for_algo = []
+            for order in all_orders_raw:
+                orders_for_algo.append({
+                    'driver_id': order.get('driver_id'),
+                    'status': order.get('status'),
+                    'deadline': order.get('deadline'),
+                    'task_type': order.get('task_type'),
+                    'Weight': order.get('Weight') or order.get('weight')
+                })
+            
+            for driver in drivers:
+                driver_id = driver['id']
+                total_hours = calculate_driver_workload_hours(driver_id, orders_for_algo)
+                driver_workload_hours[driver_id] = total_hours
         
         orders = []
-        if orders_result.data:
-            for order in orders_result.data:
+        if all_orders_raw:
+            for order in all_orders_raw:
                 order_info = {
                     'id': order.get('id'),
                     'deadline': order.get('deadline'),
@@ -669,7 +672,8 @@ def company_dashboard():
                     'customer_name': None,
                     'customer_lastname': None,
                     'driver_id': order.get('driver_id'),
-                    'status': order.get('status')
+                    'status': order.get('status'),
+                    'Weight': order.get('Weight') or order.get('weight')
                 }
                 # Get address if available
                 if order.get('Address'):
@@ -696,9 +700,8 @@ def company_dashboard():
                             # Update the order to link it to the client
                             try:
                                 sb.table('Orders').update({'client_id': client_id}).eq('id', order_info['id']).execute()
-                                print(f"Linked order {order_info['id']} to client_id {client_id}")
                             except Exception as update_error:
-                                print(f"Warning: Could not update order {order_info['id']} with client_id: {update_error}")
+                                pass
                     except Exception as e:
                         print(f"Warning: Could not find client for email {customer_email}: {e}")
                 
@@ -722,7 +725,29 @@ def company_dashboard():
                     except Exception as e:
                         print(f"Warning: Could not get customer name for {customer_email}: {e}")
                 
+                # Als er nog geen chauffeur is toegewezen, stel automatisch de beste voor
+                if not order_info.get('driver_id') and drivers:
+                    # Converteer alle orders naar dict formaat voor algoritme
+                    orders_for_algo = []
+                    for o in all_orders_raw:
+                        orders_for_algo.append({
+                            'driver_id': o.get('driver_id'),
+                            'status': o.get('status'),
+                            'deadline': o.get('deadline'),
+                            'task_type': o.get('task_type'),
+                            'Weight': o.get('Weight') or o.get('weight')
+                        })
+                    
+                    suggestion = suggest_best_driver(drivers, order_info, driver_workload_hours, orders_for_algo)
+                    if suggestion:
+                        order_info['suggested_driver'] = suggestion
+                        # Voeg ook de berekende tijd toe voor display
+                        order_info['estimated_time_hours'] = calculate_order_time_hours(order_info)
+                
                 orders.append(order_info)
+        
+        # Sorteer bestellingen op prioriteit (urgentste eerst) met het algoritme
+        orders = sort_orders_by_priority(orders)
         
         return render_template('company_dashboard.html', orders=orders, drivers=drivers, user_email=session.get('email', ''))
     except Exception as e:
@@ -848,66 +873,6 @@ def driver_select_company():
         return render_template('driver_select_company.html', companies=[])
 
 
-@bp.route('/driver/accept-route/<int:order_id>', methods=['POST'])
-@login_required
-def driver_accept_route(order_id):
-    """Accept a route (order)"""
-    user_type = session.get('user_type', 'customer')
-    if user_type != 'driver':
-        flash("Je hebt geen toegang tot deze actie.", "error")
-        return redirect(url_for('routes.profile'))
-    
-    try:
-        sb = get_authenticated_supabase()
-        user_email = session.get('email')
-        
-        # Get driver ID
-        driver_result = sb.table('Drivers').select('id').eq('email_address', user_email).limit(1).execute()
-        if not driver_result.data or len(driver_result.data) == 0:
-            flash("Chauffeur niet gevonden.", "error")
-            return redirect(url_for('routes.home'))
-        
-        driver_id = driver_result.data[0]['id']
-        
-        # Update order status and assign to driver
-        sb.table('Orders').update({
-            'status': 'accepted',
-            'driver_id': driver_id
-        }).eq('id', order_id).execute()
-        
-        flash("Route geaccepteerd!", "success")
-    except Exception as e:
-        flash(f"Fout bij het accepteren van route: {str(e)}", "error")
-        import traceback
-        traceback.print_exc()
-    
-    return redirect(url_for('routes.home'))
-
-
-@bp.route('/driver/reject-route/<int:order_id>', methods=['POST'])
-@login_required
-def driver_reject_route(order_id):
-    """Reject a route (order)"""
-    user_type = session.get('user_type', 'customer')
-    if user_type != 'driver':
-        flash("Je hebt geen toegang tot deze actie.", "error")
-        return redirect(url_for('routes.profile'))
-    
-    try:
-        sb = get_authenticated_supabase()
-        
-        # Update order status to rejected
-        sb.table('Orders').update({
-            'status': 'rejected'
-        }).eq('id', order_id).execute()
-        
-        flash("Route afgewezen.", "info")
-    except Exception as e:
-        flash(f"Fout bij het afwijzen van route: {str(e)}", "error")
-    
-    return redirect(url_for('routes.home'))
-
-
 @bp.route('/driver/dashboard')
 @login_required
 def driver_dashboard():
@@ -1001,7 +966,6 @@ def order():
                 {'id': c['id'], 'name': c['name']} 
                 for c in companies_result.data
             ]
-            print(f"Found {len(companies)} companies total")
     except Exception as e:
         print(f"Error fetching companies: {e}")
         import traceback
