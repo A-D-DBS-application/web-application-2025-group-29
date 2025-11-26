@@ -54,22 +54,23 @@ def home():
             stats = {
                 'total_orders': 0,
                 'pending_orders': 0,
+                'completed_orders': 0,
                 'recent_orders': []
             }
             
             if company_id:
-                orders_result = sb.table('Orders').select('id, deadline, created_at').eq('company_id', company_id).execute()
+                orders_result = sb.table('Orders').select('id, deadline, created_at, status').eq('company_id', company_id).execute()
                 if orders_result.data:
                     stats['total_orders'] = len(orders_result.data)
-                    # Count orders without deadline or with future deadline as pending
-                    today = datetime.now().date().isoformat()
-                    stats['pending_orders'] = sum(1 for o in orders_result.data if not o.get('deadline') or o.get('deadline') >= today)
+                    stats['completed_orders'] = sum(1 for o in orders_result.data if o.get('status') == 'completed')
+                    # Count orders that are not completed as pending
+                    stats['pending_orders'] = stats['total_orders'] - stats['completed_orders']
                     stats['recent_orders'] = sorted(orders_result.data, key=lambda x: x.get('created_at', ''), reverse=True)[:5]
             
             return render_template('home.html', user_type='company', company_name=company_name, stats=stats)
         except Exception as e:
             flash(f"Error loading company home: {e}", "error")
-            return render_template('home.html', user_type='company', company_name=None, stats={'total_orders': 0, 'pending_orders': 0, 'recent_orders': []})
+            return render_template('home.html', user_type='company', company_name=None, stats={'total_orders': 0, 'pending_orders': 0, 'completed_orders': 0, 'recent_orders': []})
     
     # For drivers, show driver-specific home page with available routes
     if user_type == 'driver' and user_email:
@@ -300,10 +301,8 @@ def signup():
 @login_required
 def profile():
     user_type = session.get('user_type', 'customer')
-    # Redirect company and driver to their dashboards
-    if user_type == 'company':
-        return redirect(url_for('routes.company_dashboard'))
-    elif user_type == 'driver':
+    # Redirect driver to their dashboard
+    if user_type == 'driver':
         return redirect(url_for('routes.driver_dashboard'))
     
     user_ctx = {
@@ -312,6 +311,7 @@ def profile():
     }
     
     addresses = []
+    
     
     if user_type == 'customer':
         first_name = session.get('first_name', '')
@@ -526,6 +526,52 @@ def customer_orders():
     except Exception as e:
         flash(f"Fout bij het ophalen van bestellingen: {str(e)}", "error")
         return render_template('customer_orders.html', active_orders=[], completed_orders=[], user_email=session.get('email', ''))
+
+
+@bp.route('/customer/cancel-order/<int:order_id>', methods=['POST'])
+@login_required
+def cancel_order(order_id):
+    """Annuleer een bestelling (alleen als deze nog niet is toegewezen aan een chauffeur)."""
+    user_type = session.get('user_type', 'customer')
+    if user_type != 'customer':
+        flash("Je hebt geen toegang tot deze actie.", "error")
+        return redirect(url_for('routes.profile'))
+    
+    try:
+        sb = get_authenticated_supabase()
+        customer_email = session.get('email')
+        
+        # Controleer of de bestelling bestaat en bij deze klant hoort
+        order_result = sb.table('Orders').select('id, driver_id, customer_email, status').eq('id', order_id).eq('customer_email', customer_email).limit(1).execute()
+        
+        if not order_result.data or len(order_result.data) == 0:
+            flash("Bestelling niet gevonden of je hebt geen toegang tot deze bestelling.", "error")
+            return redirect(url_for('routes.customer_orders'))
+        
+        order = order_result.data[0]
+        
+        # Controleer of de bestelling al is toegewezen aan een chauffeur
+        if order.get('driver_id'):
+            flash("Deze bestelling kan niet worden geannuleerd omdat deze al is toegewezen aan een chauffeur.", "error")
+            return redirect(url_for('routes.customer_orders'))
+        
+        # Controleer of de bestelling al is voltooid
+        if order.get('status') == 'completed':
+            flash("Deze bestelling kan niet worden geannuleerd omdat deze al is voltooid.", "error")
+            return redirect(url_for('routes.customer_orders'))
+        
+        # Verwijder de bestelling
+        delete_result = sb.table('Orders').delete().eq('id', order_id).eq('customer_email', customer_email).execute()
+        
+        if delete_result.data:
+            flash("Bestelling succesvol geannuleerd.", "success")
+        else:
+            flash("Bestelling kon niet worden geannuleerd.", "error")
+    
+    except Exception as e:
+        flash(f"Fout bij het annuleren van bestelling: {str(e)}", "error")
+    
+    return redirect(url_for('routes.customer_orders'))
 
 
 @bp.route('/customer/orders/<int:order_id>/edit', methods=['GET', 'POST'])
@@ -811,6 +857,9 @@ def company_dashboard():
                     except Exception:
                         pass
                 
+                # Bereken geschatte tijd voor deze order
+                order_info['estimated_time_hours'] = calculate_order_time_hours(order_info)
+                
                 # Als er nog geen chauffeur is toegewezen, stel automatisch de beste voor
                 if not order_info.get('driver_id') and drivers:
                     # Converteer alle orders naar dict formaat voor algoritme
@@ -827,8 +876,32 @@ def company_dashboard():
                     suggestion = suggest_best_driver(drivers, order_info, driver_workload_hours, orders_for_algo)
                     if suggestion:
                         order_info['suggested_driver'] = suggestion
-                        # Voeg ook de berekende tijd toe voor display
-                        order_info['estimated_time_hours'] = calculate_order_time_hours(order_info)
+                    
+                    # Bereken beschikbare tijd per chauffeur voor deze order
+                    order_deadline_date = None
+                    if order_info.get('deadline'):
+                        try:
+                            order_deadline_date = datetime.strptime(order_info['deadline'], '%Y-%m-%d').date()
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    driver_availability = []
+                    for driver in drivers:
+                        driver_id = driver['id']
+                        if order_deadline_date:
+                            hours_on_deadline = calculate_driver_workload_hours(driver_id, orders_for_algo, order_deadline_date)
+                            available_hours = 10.0 - hours_on_deadline
+                        else:
+                            total_hours = driver_workload_hours.get(driver_id, 0.0)
+                            available_hours = 10.0 - (total_hours % 10.0) if total_hours > 0 else 10.0
+                        
+                        driver_availability.append({
+                            'driver_id': driver_id,
+                            'driver_name': driver.get('name', 'Onbekend'),
+                            'available_hours': max(0.0, available_hours)
+                        })
+                    
+                    order_info['driver_availability'] = driver_availability
                 
                 orders.append(order_info)
         

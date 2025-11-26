@@ -12,7 +12,7 @@
               {% if user['user_type'] == 'company' %}Bedrijf{% elif user['user_type'] == 'driver' %}Chauffeur{% else %}Klant{% endif %}
             </span>
           </dd>
-          {% if user['user_type'] == 'customer' and user.get('display_name') %}
+          {% if user.get('display_name') %}
           <dt class="col-sm-3">Naam</dt>
           <dd class="col-sm-9">{{ user['display_name'] }}</dd>
           {% endif %}

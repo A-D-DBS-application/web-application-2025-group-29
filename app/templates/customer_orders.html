@@ -3,12 +3,12 @@
 <div class="row">
   <div class="col-12">
     <div class="d-flex justify-content-between align-items-center mb-4">
-      <h2 class="h4 mb-0">👤 Mijn Bestellingen</h2>
+      <h2 class="h4 mb-0">Mijn Bestellingen</h2>
       <a href="{{ url_for('routes.order') }}" class="btn btn-success">Nieuwe Bestelling</a>
     </div>
     
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-primary text-white">
+    <div class="card shadow-sm mb-4 border-success">
+      <div class="card-header bg-success text-white">
         <h5 class="mb-0">Mijn Bestellingen</h5>
       </div>
       <div class="card-body p-0">
@@ -35,14 +35,14 @@
                 <td>{{ order.id }}</td>
                 <td>
                   {% if order.company %}
-                    <span class="badge bg-success">{{ order.company.name }}</span>
+                    <span class="text-dark">{{ order.company.name }}</span>
                   {% else %}
                     <span class="text-muted">-</span>
                   {% endif %}
                 </td>
                 <td>
                   {% if order.deadline %}
-                    <span class="badge bg-info">
+                    <span class="text-dark">
                       {{ order.deadline }}
                     </span>
                   {% else %}
@@ -63,14 +63,14 @@
                 </td>
                 <td>
                   {% if order.driver_name %}
-                    <span class="badge bg-warning text-dark">🚚 {{ order.driver_name }}</span>
+                    <span class="text-dark">{{ order.driver_name }}</span>
                   {% else %}
                     <span class="text-muted">Nog niet toegewezen</span>
                   {% endif %}
                 </td>
                 <td>
                   {% if order.status %}
-                    <span class="badge bg-{% if order.status == 'completed' %}success{% elif order.status == 'accepted' %}info{% elif order.status == 'pending' %}warning text-dark{% else %}secondary{% endif %}">
+                    <span class="badge {% if order.status == 'completed' %}bg-light text-dark border{% elif order.status == 'accepted' %}bg-success text-white{% elif order.status == 'pending' %}bg-light text-dark border border-secondary{% else %}bg-light text-dark border{% endif %}">
                       {% if order.status == 'completed' %}Uitgevoerd{% elif order.status == 'accepted' %}Toegewezen{% elif order.status == 'pending' %}In behandeling{% else %}{{ order.status|title }}{% endif %}
                     </span>
                   {% else %}
@@ -89,9 +89,16 @@
                     <span class="text-muted small">Niet bewerkbaar</span>
                     <br><small class="text-muted">Toegewezen aan chauffeur</small>
                   {% else %}
-                    <a href="{{ url_for('routes.edit_order', order_id=order.id) }}" class="btn btn-sm btn-outline-primary">
-                      ✏️ Bewerken
-                    </a>
+                    <div class="d-flex gap-2">
+                      <a href="{{ url_for('routes.edit_order', order_id=order.id) }}" class="btn btn-sm btn-outline-primary">
+                        Bewerken
+                      </a>
+                      <form method="POST" action="{{ url_for('routes.cancel_order', order_id=order.id) }}" onsubmit="return confirm('Weet je zeker dat je deze bestelling wilt annuleren?');" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                          Annuleren
+                        </button>
+                      </form>
+                    </div>
                   {% endif %}
                 </td>
               </tr>
@@ -108,7 +115,7 @@
     </div>
     
     <div class="card shadow-sm">
-      <div class="card-header bg-secondary text-white">
+      <div class="card-header border-success">
         <h5 class="mb-0">Voltooide Bestellingen</h5>
       </div>
       <div class="card-body p-0">
@@ -134,14 +141,14 @@
                 <td>{{ order.id }}</td>
                 <td>
                   {% if order.company %}
-                    <span class="badge bg-success">{{ order.company.name }}</span>
+                    <span class="text-dark">{{ order.company.name }}</span>
                   {% else %}
                     <span class="text-muted">-</span>
                   {% endif %}
                 </td>
                 <td>
                   {% if order.deadline %}
-                    <span class="badge bg-info">
+                    <span class="text-dark">
                       {{ order.deadline }}
                     </span>
                   {% else %}
@@ -162,7 +169,7 @@
                 </td>
                 <td>
                   {% if order.driver_name %}
-                    <span class="badge bg-warning text-dark">🚚 {{ order.driver_name }}</span>
+                    <span class="text-dark">{{ order.driver_name }}</span>
                   {% else %}
                     <span class="text-muted">-</span>
                   {% endif %}

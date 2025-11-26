@@ -3,12 +3,12 @@
 <div class="row">
   <div class="col-12">
     <div class="d-flex justify-content-between align-items-center mb-4">
-      <h2 class="h4 mb-0">🚚 Chauffeur Dashboard</h2>
+      <h2 class="h4 mb-0">Chauffeur Dashboard</h2>
       <span class="text-muted">{{ user_email }}</span>
     </div>
     
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-warning text-dark">
+    <div class="card shadow-sm mb-4 border-success">
+      <div class="card-header bg-success text-white">
         <h5 class="mb-0">Mijn Ritten</h5>
       </div>
       <div class="card-body">
@@ -16,15 +16,15 @@
           <div class="row g-3">
             {% for order in active_orders %}
             <div class="col-md-6 col-lg-4">
-              <div class="card h-100 border-primary">
-                <div class="card-header bg-primary text-white">
+              <div class="card h-100 border-success">
+                <div class="card-header bg-success text-white">
                   <h6 class="mb-0">Rit #{{ order.id }}</h6>
                 </div>
                 <div class="card-body">
                   <p class="mb-2">
                     <strong>Deadline:</strong><br>
                     {% if order.deadline %}
-                      <span class="badge bg-success">
+                      <span class="text-dark">
                         {{ order.deadline }}
                       </span>
                     {% else %}
@@ -47,7 +47,7 @@
                   {% if order.address.phone_number %}
                   <p class="mb-2">
                     <a href="tel:{{ order.address.phone_number }}" class="btn btn-sm btn-outline-primary">
-                      📞 {{ order.address.phone_number }}
+                      {{ order.address.phone_number }}
                     </a>
                   </p>
                   {% endif %}
@@ -60,16 +60,16 @@
                       target="_blank" 
                       class="btn btn-success mb-2"
                     >
-                      🗺️ Navigeer naar Google Maps
+                      Navigeer naar Google Maps
                     </a>
                     {% if order.status != 'completed' %}
                     <form method="POST" action="{{ url_for('routes.driver_complete_order', order_id=order.id) }}" onsubmit="return confirm('Weet je zeker dat je deze taak als uitgevoerd wilt markeren?');">
                       <button type="submit" class="btn btn-dark w-100">
-                        ✓ Taak voltooien
+                        Taak voltooien
                       </button>
                     </form>
                     {% else %}
-                    <span class="badge bg-success w-100 p-2 text-center">✓ Uitgevoerd</span>
+                    <span class="badge bg-light text-dark border w-100 p-2 text-center">Uitgevoerd</span>
                     {% endif %}
                   </div>
                   {% endif %}
@@ -87,7 +87,7 @@
     </div>
     
     <div class="card shadow-sm">
-      <div class="card-header bg-secondary text-white">
+      <div class="card-header border-success">
         <h5 class="mb-0">Voltooide Ritten</h5>
       </div>
       <div class="card-body">
@@ -95,15 +95,15 @@
           <div class="row g-3">
             {% for order in completed_orders %}
             <div class="col-md-6 col-lg-4">
-              <div class="card h-100 border-secondary">
-                <div class="card-header bg-secondary text-white">
-                  <h6 class="mb-0">Rit #{{ order.id }} ✓</h6>
+              <div class="card h-100 border-success">
+                <div class="card-header border-success">
+                  <h6 class="mb-0">Rit #{{ order.id }}</h6>
                 </div>
                 <div class="card-body">
                   <p class="mb-2">
                     <strong>Deadline:</strong><br>
                     {% if order.deadline %}
-                      <span class="badge bg-info">
+                      <span class="text-dark">
                         {{ order.deadline }}
                       </span>
                     {% else %}
@@ -126,13 +126,13 @@
                   {% if order.address.phone_number %}
                   <p class="mb-2">
                     <a href="tel:{{ order.address.phone_number }}" class="btn btn-sm btn-outline-primary">
-                      📞 {{ order.address.phone_number }}
+                      {{ order.address.phone_number }}
                     </a>
                   </p>
                   {% endif %}
                   {% endif %}
                   <div class="d-grid mt-3">
-                    <span class="badge bg-success w-100 p-2 text-center">✓ Uitgevoerd</span>
+                    <span class="badge bg-light text-dark border w-100 p-2 text-center">Uitgevoerd</span>
                   </div>
                 </div>
               </div>

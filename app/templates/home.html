@@ -5,7 +5,7 @@
   <!-- Company Home Page -->
   <div class="row mb-4">
     <div class="col-12">
-      <div class="p-5 mb-4 bg-success text-white rounded-3">
+      <div class="p-5 mb-4 border border-success rounded-3">
         <div class="container-fluid py-5">
           <h1 class="display-5 fw-bold">Welkom bij AgriFlow</h1>
           <p class="col-md-8 fs-4">
@@ -16,6 +16,10 @@
             {% endif %}
           </p>
           <p class="col-md-8 fs-6 opacity-75">Beheer je bestellingen en klanten op één plek</p>
+          <div class="mt-4">
+            <a class="btn btn-success btn-lg me-2" href="{{ url_for('routes.company_dashboard') }}">Bekijk Bestellingen</a>
+            <a class="btn btn-outline-primary btn-lg" href="{{ url_for('routes.profile') }}">Profiel Instellingen</a>
+          </div>
         </div>
       </div>
     </div>
@@ -24,76 +28,26 @@
   <div class="row g-4 mb-4">
     <!-- Statistics Cards -->
     <div class="col-md-4">
-      <div class="card shadow-sm border-0 h-100">
+      <div class="card shadow-sm border-success h-100">
         <div class="card-body text-center">
-          <div class="display-4 mb-3">📊</div>
           <h3 class="card-title">{{ stats.total_orders }}</h3>
           <p class="card-text text-muted">Totaal Bestellingen</p>
         </div>
       </div>
     </div>
     <div class="col-md-4">
-      <div class="card shadow-sm border-0 h-100">
+      <div class="card shadow-sm border-success h-100">
         <div class="card-body text-center">
-          <div class="display-4 mb-3">⏳</div>
           <h3 class="card-title">{{ stats.pending_orders }}</h3>
           <p class="card-text text-muted">Openstaande Bestellingen</p>
         </div>
       </div>
     </div>
     <div class="col-md-4">
-      <div class="card shadow-sm border-0 h-100">
+      <div class="card shadow-sm border-success h-100">
         <div class="card-body text-center">
-          <div class="display-4 mb-3">📈</div>
-          <h3 class="card-title">{{ (stats.total_orders - stats.pending_orders) if stats.total_orders >= stats.pending_orders else 0 }}</h3>
+          <h3 class="card-title">{{ stats.completed_orders }}</h3>
           <p class="card-text text-muted">Afgehandelde Bestellingen</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Quick Actions -->
-  <div class="row g-4 mb-4">
-    <div class="col-12">
-      <h3 class="mb-3">Snelle Acties</h3>
-    </div>
-    <div class="col-md-6 col-lg-3">
-      <a href="{{ url_for('routes.company_dashboard') }}" class="text-decoration-none">
-        <div class="card shadow-sm border-0 h-100 hover-card">
-          <div class="card-body text-center">
-            <div class="display-4 mb-3">📋</div>
-            <h5 class="card-title">Bestellingen Bekijken</h5>
-            <p class="card-text text-muted small">Bekijk alle bestellingen voor jouw bedrijf</p>
-          </div>
-        </div>
-      </a>
-    </div>
-    <div class="col-md-6 col-lg-3">
-      <a href="{{ url_for('routes.profile') }}" class="text-decoration-none">
-        <div class="card shadow-sm border-0 h-100 hover-card">
-          <div class="card-body text-center">
-            <div class="display-4 mb-3">⚙️</div>
-            <h5 class="card-title">Profiel Instellingen</h5>
-            <p class="card-text text-muted small">Wijzig je bedrijfsgegevens</p>
-          </div>
-        </div>
-      </a>
-    </div>
-    <div class="col-md-6 col-lg-3">
-      <div class="card shadow-sm border-0 h-100 bg-light">
-        <div class="card-body text-center">
-          <div class="display-4 mb-3">📊</div>
-          <h5 class="card-title">Rapporten</h5>
-          <p class="card-text text-muted small">Binnenkort beschikbaar</p>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-6 col-lg-3">
-      <div class="card shadow-sm border-0 h-100 bg-light">
-        <div class="card-body text-center">
-          <div class="display-4 mb-3">💬</div>
-          <h5 class="card-title">Klantencontact</h5>
-          <p class="card-text text-muted small">Binnenkort beschikbaar</p>
         </div>
       </div>
     </div>
@@ -103,9 +57,9 @@
   {% if stats.recent_orders and stats.recent_orders|length > 0 %}
   <div class="row mb-4">
     <div class="col-12">
-      <div class="card shadow-sm border-0">
+      <div class="card shadow-sm border-success">
         <div class="card-header bg-success text-white">
-          <h5 class="mb-0">🕒 Recente Bestellingen</h5>
+          <h5 class="mb-0">Recente Bestellingen</h5>
         </div>
         <div class="card-body">
           <div class="table-responsive">
@@ -124,7 +78,7 @@
                   <td>{{ order.created_at[:10] if order.created_at else '-' }}</td>
                   <td>
                     {% if order.deadline %}
-                      <span class="badge bg-info">{{ order.deadline }}</span>
+                      <span class="text-dark">{{ order.deadline }}</span>
                     {% else %}
                       <span class="text-muted">Geen deadline</span>
                     {% endif %}
@@ -147,11 +101,14 @@
   <!-- Driver Home Page -->
   <div class="row mb-4">
     <div class="col-12">
-      <div class="p-5 mb-4 bg-warning text-dark rounded-3">
+      <div class="p-5 mb-4 border border-success rounded-3">
         <div class="container-fluid py-5">
-          <h1 class="display-5 fw-bold">🚚 Chauffeur Dashboard</h1>
+          <h1 class="display-5 fw-bold">Chauffeur Dashboard</h1>
           <p class="col-md-8 fs-4">Mijn Toegewezen Taken</p>
           <p class="col-md-8 fs-6 opacity-75">Taken die door het bedrijf aan jou zijn toegewezen</p>
+          <div class="mt-4">
+            <a class="btn btn-success btn-lg" href="{{ url_for('routes.driver_dashboard') }}">Bekijk Dashboard</a>
+          </div>
         </div>
       </div>
     </div>
@@ -160,13 +117,13 @@
   {% if active_routes %}
   <div class="row g-4 mb-4">
     <div class="col-12">
-      <h3 class="mb-3">📋 Mijn Toegewezen Taken</h3>
+      <h3 class="mb-3">Mijn Toegewezen Taken</h3>
     </div>
     {% for route in active_routes %}
     <div class="col-md-6 col-lg-4">
-      <div class="card shadow-sm border-0 h-100 border-success">
+      <div class="card shadow-sm h-100 border-success">
         <div class="card-header bg-success text-white">
-          <h6 class="mb-0">Taak #{{ route.id }} ✓</h6>
+          <h6 class="mb-0">Taak #{{ route.id }}</h6>
         </div>
         <div class="card-body">
           <p class="mb-2">
@@ -193,7 +150,7 @@
           {% if route.address.phone_number %}
           <p class="mb-2">
             <a href="tel:{{ route.address.phone_number }}" class="btn btn-sm btn-outline-primary">
-              📞 {{ route.address.phone_number }}
+              {{ route.address.phone_number }}
             </a>
           </p>
           {% endif %}
@@ -206,16 +163,16 @@
               target="_blank" 
               class="btn btn-success mb-2"
             >
-              🗺️ Navigeer naar Google Maps
+              Navigeer naar Google Maps
             </a>
             {% if route.status != 'completed' %}
             <form method="POST" action="{{ url_for('routes.driver_complete_order', order_id=route.id) }}" onsubmit="return confirm('Weet je zeker dat je deze taak als uitgevoerd wilt markeren?');">
               <button type="submit" class="btn btn-dark w-100">
-                ✓ Taak voltooien
+                Taak voltooien
               </button>
             </form>
             {% else %}
-            <span class="badge bg-success w-100 p-2 text-center">✓ Uitgevoerd</span>
+            <span class="badge bg-light text-dark border w-100 p-2 text-center">Uitgevoerd</span>
             {% endif %}
           </div>
           {% endif %}
@@ -235,13 +192,13 @@
   {% if completed_routes %}
   <div class="row g-4 mb-4">
     <div class="col-12">
-      <h3 class="mb-3">✅ Voltooide Taken</h3>
+      <h3 class="mb-3">Voltooide Taken</h3>
     </div>
     {% for route in completed_routes %}
     <div class="col-md-6 col-lg-4">
-      <div class="card shadow-sm border-0 h-100 border-secondary">
-        <div class="card-header bg-secondary text-white">
-          <h6 class="mb-0">Taak #{{ route.id }} ✓</h6>
+      <div class="card shadow-sm h-100 border-success">
+        <div class="card-header border-success">
+          <h6 class="mb-0">Taak #{{ route.id }}</h6>
         </div>
         <div class="card-body">
           <p class="mb-2">
@@ -268,13 +225,13 @@
           {% if route.address.phone_number %}
           <p class="mb-2">
             <a href="tel:{{ route.address.phone_number }}" class="btn btn-sm btn-outline-primary">
-              📞 {{ route.address.phone_number }}
+              {{ route.address.phone_number }}
             </a>
           </p>
           {% endif %}
           {% endif %}
           <div class="d-grid mt-3">
-            <span class="badge bg-success w-100 p-2 text-center">✓ Uitgevoerd</span>
+            <span class="badge bg-light text-dark border w-100 p-2 text-center">Uitgevoerd</span>
           </div>
         </div>
       </div>
@@ -283,21 +240,10 @@
   </div>
   {% endif %}
 
-  <div class="row mt-4">
-    <div class="col-12">
-      <div class="card shadow-sm border-0">
-        <div class="card-body">
-          <h5 class="card-title">📊 Dashboard</h5>
-          <p class="card-text">Bekijk alle details van je routes in het volledige dashboard.</p>
-          <a href="{{ url_for('routes.driver_dashboard') }}" class="btn btn-warning">Naar Volledige Dashboard →</a>
-        </div>
-      </div>
-    </div>
-  </div>
 
 {% else %}
   <!-- Customer/Public Home Page -->
-  <div class="p-5 mb-4 bg-light rounded-3">
+      <div class="p-5 mb-4 border border-success rounded-3">
     <div class="container-fluid py-5">
       <h1 class="display-6 fw-bold">Welkom bij AgriFlow</h1>
       <p class="col-md-8 fs-5">De slimme oplossing voor landbouwplanning en logistiek.</p>
@@ -314,29 +260,6 @@
       {% endif %}
     </div>
   </div>
-
-  {% if g.current_user_id and user_type == 'customer' %}
-  <div class="row g-4 mt-4">
-    <div class="col-md-6">
-      <div class="card shadow-sm border-0">
-        <div class="card-body">
-          <h5 class="card-title">📦 Plaats een Bestelling</h5>
-          <p class="card-text">Bestel landbouwservices bij je favoriete bedrijven. Kies uit verschillende taken en producten.</p>
-          <a href="{{ url_for('routes.order') }}" class="btn btn-success">Bestellen →</a>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-6">
-      <div class="card shadow-sm border-0">
-        <div class="card-body">
-          <h5 class="card-title">📋 Mijn Bestellingen</h5>
-          <p class="card-text">Bekijk de status van je bestellingen en volg je orders op.</p>
-          <a href="{{ url_for('routes.customer_orders') }}" class="btn btn-outline-primary">Bekijken →</a>
-        </div>
-      </div>
-    </div>
-  </div>
-  {% endif %}
 
 {% endif %}
 

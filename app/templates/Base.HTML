@@ -18,7 +18,7 @@
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('routes.home') }}">Home</a></li>
                     {% if g.current_user_id %}
                         {% if g.current_user_type == 'customer' %}
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('routes.order') }}">Bestelling</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('routes.customer_orders') }}">Mijn Bestellingen</a></li>
                         {% elif g.current_user_type == 'company' %}
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('routes.company_dashboard') }}">Dashboard</a></li>
                         {% elif g.current_user_type == 'driver' %}
@@ -29,11 +29,8 @@
                 </ul>
                 <ul class="navbar-nav">
                     {% if g.current_user_id %}
-                    <li class="nav-item">
-                        <span class="navbar-text me-3">
-                          <span class="badge bg-{% if g.current_user_type == 'company' %}success{% elif g.current_user_type == 'driver' %}warning{% else %}primary{% endif %} me-2">
-                            {% if g.current_user_type == 'company' %}🏢{% elif g.current_user_type == 'driver' %}🚚{% else %}👤{% endif %}
-                          </span>
+                    <li class="nav-item d-flex align-items-center">
+                        <span class="navbar-text me-3 mb-0">
                           {{ g.current_user_email }}
                         </span>
                     </li>
