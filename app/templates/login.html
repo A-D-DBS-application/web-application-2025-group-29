@@ -7,21 +7,12 @@
       <div class="card-body p-4">
                 <h2 class="h4 mb-3 text-center">Inloggen {% if user_type == 'company' %}(Bedrijf){% elif user_type == 'driver' %}(Chauffeur){% else %}(Klant){% endif %}</h2>
         <form method="POST" action="{{ url_for('routes.login') }}" class="needs-validation" novalidate id="loginForm">
-          <input type="hidden" name="user_type" value="{{ user_type }}" id="user_type_input">
           <div class="mb-3">
-            <label class="form-label">E-mail</label>
-            <input type="email" name="email" class="form-control" placeholder="naam@voorbeeld.com" required autocomplete="email" id="email_input">
-            <div class="invalid-feedback">Voer een geldig e-mailadres in.</div>
+            <label class="form-label">Gebruikersnaam</label>
+            <input type="text" name="username" class="form-control" placeholder="Bijv. boerjan01" required id="username_input">
+            <div class="invalid-feedback">Gebruikersnaam is verplicht.</div>
           </div>
-          <div class="mb-3">
-            <label class="form-label">Wachtwoord</label>
-            <input type="password" name="password" class="form-control" placeholder="••••••••" required autocomplete="current-password" minlength="1" id="password_input">
-            <div class="invalid-feedback">Wachtwoord is verplicht.</div>
-          </div>
-          <div class="mb-3 text-end">
-            <a href="{{ url_for('routes.forgot_password') }}" class="text-decoration-none">Wachtwoord vergeten?</a>
-          </div>
-          <div class="d-grid">
+          <div class="d-grid mt-3">
             <button type="submit" class="btn btn-success" id="submitBtn">Inloggen</button>
           </div>
         </form>
@@ -39,7 +30,7 @@
               }
               
               // Debug logging
-              console.log('Login form initialized, user_type:', document.getElementById('user_type_input')?.value);
+              console.log('Login form initialized');
               
               form.addEventListener('submit', function(event) {
                 try {
@@ -74,7 +65,7 @@
                   const formData = new FormData(form);
                   console.log('Submitting form with data:');
                   for (let [key, value] of formData.entries()) {
-                    console.log(`  ${key}: ${value ? (key === 'password' ? '***' : value) : '(empty)'}`);
+                    console.log(`  ${key}: ${value || '(empty)'}`);
                   }
                   
                 } catch (e) {
@@ -93,8 +84,8 @@
           })();
         </script>
                 <p class="mt-3 mb-0 text-center">
-                  <a href="{{ url_for('routes.choose_auth', user_type=user_type) }}" class="text-decoration-none">← Terug</a> | 
-                  <a href="{{ url_for('routes.signup', user_type=user_type) }}" class="text-decoration-none">Registreren</a>
+                  <a href="{{ url_for('routes.home') }}" class="text-decoration-none">← Terug</a> | 
+                  <a href="{{ url_for('routes.signup') }}" class="text-decoration-none">Registreren</a>
                 </p>
       </div>
     </div>

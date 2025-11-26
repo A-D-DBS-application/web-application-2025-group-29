@@ -1,19 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
-{% set user_type = user_type|default('customer') %}
 <div class="row justify-content-center">
   <div class="col-12 col-md-7 col-lg-5">
     <div class="card shadow-sm">
       <div class="card-body p-4">
-                <h2 class="h4 mb-3 text-center">Account aanmaken {% if user_type == 'company' %}(Bedrijf){% elif user_type == 'driver' %}(Chauffeur){% else %}(Klant){% endif %}</h2>
+                <h2 class="h4 mb-3 text-center">Account aanmaken</h2>
         <form method="POST" class="needs-validation" novalidate>
-          <input type="hidden" name="user_type" value="{{ user_type }}">
           <div class="mb-3">
-            <label class="form-label">E-mail</label>
-            <input type="email" name="email" class="form-control" placeholder="naam@voorbeeld.com" required autocomplete="email">
-            <div class="invalid-feedback">Voer een geldig e-mailadres in.</div>
+            <label class="form-label">Gebruikersnaam</label>
+            <input type="text" name="username" class="form-control" placeholder="Bijv. boerjan01" required>
+            <div class="invalid-feedback">Gebruikersnaam is verplicht.</div>
           </div>
-          {% if user_type == 'customer' %}
           <div class="row">
             <div class="col-md-6 mb-3">
               <label class="form-label">Voornaam</label>
@@ -26,20 +23,15 @@
               <div class="invalid-feedback">Achternaam is verplicht.</div>
             </div>
           </div>
-          {% endif %}
-          {% if user_type == 'company' %}
           <div class="mb-3">
-            <label class="form-label">Bedrijfsnaam</label>
-            <input type="text" name="company_name" class="form-control" placeholder="Bijv. BoerMathis" required>
-            <div class="invalid-feedback">Bedrijfsnaam is verplicht.</div>
-            <small class="form-text text-muted">Deze naam wordt gebruikt bij het selecteren van bedrijven bij bestellingen.</small>
-          </div>
-          {% endif %}
-          <div class="mb-4">
-            <label class="form-label">Wachtwoord</label>
-            <input type="password" name="password" class="form-control" placeholder="Minimaal 6 tekens" required autocomplete="new-password" minlength="6">
-            <div class="invalid-feedback">Wachtwoord moet minimaal 6 tekens lang zijn.</div>
-            <small class="form-text text-muted">Gebruik minimaal 6 tekens voor een veilig wachtwoord.</small>
+            <label class="form-label">Type account</label>
+            <select name="user_type" class="form-select" required>
+              <option value="" disabled selected>Kies een type</option>
+              <option value="customer">Klant</option>
+              <option value="company">Bedrijf</option>
+              <option value="driver">Chauffeur</option>
+            </select>
+            <div class="invalid-feedback">Kies een type account.</div>
           </div>
           <div class="d-grid">
             <button type="submit" class="btn btn-success">Registreren</button>
@@ -60,8 +52,8 @@
           })();
         </script>
                 <p class="mt-3 mb-0 text-center">
-                  <a href="{{ url_for('routes.choose_auth', user_type=user_type) }}" class="text-decoration-none">← Terug</a> | 
-                  <a href="{{ url_for('routes.login', user_type=user_type) }}" class="text-decoration-none">Inloggen</a>
+                  <a href="{{ url_for('routes.home') }}" class="text-decoration-none">← Terug</a> | 
+                  <a href="{{ url_for('routes.login') }}" class="text-decoration-none">Inloggen</a>
                 </p>
       </div>
     </div>

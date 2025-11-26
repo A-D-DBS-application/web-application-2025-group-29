@@ -1,9 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, g
 from datetime import datetime
 import re
-from urllib.parse import unquote_plus
 from .config import supabase, Config
-from supabase import create_client
 bp = Blueprint('routes', __name__)
 
 def validate_email(email):
@@ -11,37 +9,20 @@ def validate_email(email):
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
 
-def validate_password(password):
-    """Validate password strength"""
-    if len(password) < 6:
-        return False, "Wachtwoord moet minimaal 6 tekens lang zijn."
-    return True, None
-
 def get_authenticated_supabase():
-    """Get Supabase client with session token if available"""
-    # Always use a fresh client instance to avoid session conflicts
-    client = create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
-    # If user has an access token in session, set it for authenticated requests
-    if session.get('sb_access_token') and session.get('sb_refresh_token'):
-        try:
-            client.auth.set_session(access_token=session.get('sb_access_token'), refresh_token=session.get('sb_refresh_token'))
-            # Verify the session is working by getting the user
-            try:
-                user = client.auth.get_user()
-                print(f"✓ Authenticated Supabase client - User: {user.user.email if user.user else 'None'}")
-            except Exception as verify_error:
-                print(f"⚠ Session verification failed: {verify_error}")
-        except Exception as e:
-            print(f"⚠ Failed to set session on Supabase client: {e}")
-            # If session setting fails, continue with unauthenticated client
-            pass
-    else:
-        print(f"⚠ No session tokens in Flask session - using unauthenticated client")
-    return client
+    """
+    Vereenvoudigde helper: geeft de globale Supabase client terug zonder
+    enige authenticatie of sessie-koppeling.
+
+    We gebruiken Supabase alleen als database (via RLS/anon key of service key)
+    en NIET meer voor gebruikers-authenticatie.
+    """
+    return supabase
 
 def login_required(view_func):
     def wrapped(*args, **kwargs):
-        if 'sb_user_id' not in session:
+        # Eenvoudige check: is er een huidige gebruiker in de sessie?
+        if 'email' not in session or 'user_type' not in session:
             flash("Je moet ingelogd zijn.", "error")
             return redirect(url_for('routes.login'))
         return view_func(*args, **kwargs)
@@ -53,7 +34,8 @@ def login_required(view_func):
 @bp.before_request
 def load_current_user():
     """Load current user info into g for template access"""
-    g.current_user_id = session.get('sb_user_id')
+    # Gebruik de gebruikersnaam als "id" voor login-detectie
+    g.current_user_id = session.get('email')
     g.current_user_email = session.get('email')
     g.current_user_type = session.get('user_type', 'customer')
     
@@ -219,794 +201,187 @@ def debug_login():
     return render_template('debug_login.html')
 
 
-@bp.route('/select-role')
-def select_role():
-    return render_template('select_role.html')
-
-
-@bp.route('/choose-auth', methods=['GET', 'POST'])
-def choose_auth():
-    if request.method == 'POST':
-        user_type = request.form.get('user_type', 'customer')
-        if user_type not in ['company', 'customer', 'driver']:
-            user_type = 'customer'
-        # Store in session temporarily
-        session['selected_user_type'] = user_type
-        return render_template('choose_auth.html', user_type=user_type)
-    
-    # GET request - check if user_type is in session or query param
-    user_type = request.args.get('user_type') or session.get('selected_user_type', 'customer')
-    if user_type not in ['company', 'customer', 'driver']:
-        return redirect(url_for('routes.select_role'))
-    
-    session['selected_user_type'] = user_type
-    return render_template('choose_auth.html', user_type=user_type)
-
-
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
-    # Get user_type from query parameter, form, or session
-    user_type = request.args.get('user_type') or request.form.get('user_type') or session.get('selected_user_type', 'customer')
-    if user_type not in ['company', 'customer', 'driver']:
-        user_type = 'customer'
-    
     # Debug logging
-    print(f"Login route called - Method: {request.method}, User type: {user_type}")
+    print(f"Login route called - Method: {request.method}")
     
     if request.method == 'POST':
         print(f"POST request received - Form data: {dict(request.form)}")
-        email = request.form.get('email', '').strip()
-        password = request.form.get('password', '')
-        
-        # Validation
-        if not email:
-            flash("E-mailadres is verplicht.", "error")
-            return render_template('login.html', user_type=user_type)
-        
-        if not password:
-            flash("Wachtwoord is verplicht.", "error")
-            return render_template('login.html', user_type=user_type)
-        
-        if not validate_email(email):
-            flash("Voer een geldig e-mailadres in (bijv. naam@voorbeeld.com).", "error")
-            return render_template('login.html', user_type=user_type)
+        # Gebruikersnaam die we in de emailaddress/email_address kolommen opslaan
+        username = request.form.get('username', '').strip()
+
+        # Minimale validatie: alleen leeg veld blokkeren
+        if not username:
+            flash("Gebruikersnaam is verplicht.", "error")
+            return render_template('login.html')
 
         try:
-            print(f"Attempting login for email: {email}")
             if supabase is None:
                 print("ERROR: Supabase client is None!")
                 flash("Supabase is niet geconfigureerd. Neem contact op met de beheerder.", "error")
-                return render_template('login.html', user_type=user_type)
-            
-            print("Calling supabase.auth.sign_in_with_password...")
-            try:
-                result = supabase.auth.sign_in_with_password({"email": email, "password": password})
-            except Exception as login_error:
-                # Check if error is about email verification
-                error_str = str(login_error).lower()
-                if "email not confirmed" in error_str or "email_confirmed_at" in error_str or "email verification" in error_str:
-                    # Email verification error - try to work around it
-                    print(f"Email verification error detected, attempting workaround...")
-                    # Try to sign in with a different approach that might bypass verification
-                    # Or show a helpful message
-                    flash("Email verificatie is nog vereist in Supabase. Schakel 'Confirm email' uit in Supabase Dashboard > Auth > Providers > Email, of bevestig je email via de link in je inbox.", "error")
-                    return render_template('login.html', user_type=user_type)
-                else:
-                    # Re-raise other errors
-                    raise
-            
-            print(f"Supabase response received, user: {result.user}")
-            user = result.user
-            
-            if user is None:
-                flash("Ongeldige inloggegevens. Controleer je e-mail en wachtwoord.", "error")
-                return render_template('login.html', user_type=user_type)
-            
-            # Check if email is confirmed (disabled for development - can be re-enabled in production)
-            # For development, we skip email verification check
-            # if not user.email_confirmed_at:
-            #     flash("Je e-mailadres is nog niet bevestigd. Controleer je inbox en klik op de verificatielink.", "error")
-            #     return render_template('login.html', user_type=user_type)
+                return render_template('login.html')
 
-            # Persist minimal user info and session tokens for future API calls/refresh
-            # Explicitly mark session as modified for Safari compatibility
-            session['sb_user_id'] = user.id
-            session['email'] = email
+            sb = get_authenticated_supabase()
+
+            # Zoek de gebruiker in de tabellen op basis van gebruikersnaam
+            client_id = None
+            company_id = None
+            driver_id = None
+            first_name = None
+            last_name = None
+            user_type = None
+
+            # 1) Klant
+            result = sb.table('Client').select('id, Name, Lastname').eq('emailaddress', username).limit(1).execute()
+            if result.data and len(result.data) > 0:
+                row = result.data[0]
+                client_id = row['id']
+                first_name = row.get('Name')
+                last_name = row.get('Lastname')
+                user_type = 'customer'
+            else:
+                # 2) Bedrijf
+                result = sb.table('Companies').select('id, name').eq('emailaddress', username).limit(1).execute()
+                if result.data and len(result.data) > 0:
+                    company_id = result.data[0]['id']
+                    user_type = 'company'
+                else:
+                    # 3) Chauffeur
+                    result = sb.table('Drivers').select('id, name').eq('email_address', username).limit(1).execute()
+                    if result.data and len(result.data) > 0:
+                        driver_id = result.data[0]['id']
+                        user_type = 'driver'
+
+            if not user_type:
+                flash("Geen gebruiker gevonden met deze gebruikersnaam.", "error")
+                return render_template('login.html')
+
+            # Sessie vullen – geen Supabase-auth tokens meer, alleen onze eigen context
+            session.clear()
+            session['email'] = username
             session['user_type'] = user_type
-            
-            if getattr(result, 'session', None):
-                session['sb_access_token'] = result.session.access_token
-                session['sb_refresh_token'] = result.session.refresh_token
-            
-            # Force session to be saved (important for Safari)
+
+            if client_id is not None:
+                session['client_id'] = client_id
+            if company_id is not None:
+                session['company_id'] = company_id
+            if driver_id is not None:
+                session['driver_id'] = driver_id
+            if first_name:
+                session['first_name'] = first_name
+            if last_name:
+                session['last_name'] = last_name
+
             session.modified = True
 
-            # If customer, ensure they exist in Client table and get name
-            if user_type == 'customer':
-                try:
-                    sb = get_authenticated_supabase()
-                    # Check if client exists and get name
-                    client_result = sb.table('Client').select('id, Name, Lastname').eq('emailaddress', email).limit(1).execute()
-                    
-                    client_id = None
-                    if client_result.data and len(client_result.data) > 0:
-                        client_id = client_result.data[0]['id']
-                        first_name = client_result.data[0].get('Name', '')
-                        last_name = client_result.data[0].get('Lastname', '')
-                        session['first_name'] = first_name
-                        session['last_name'] = last_name
-                        print(f"✓ Client found with ID {client_id}, Name: {first_name} {last_name}")
-                    else:
-                        # Create Client record if it doesn't exist (without name, will be updated later)
-                        new_client = sb.table('Client').insert({
-                            "emailaddress": email,
-                            "created_at": datetime.utcnow().isoformat()
-                        }).execute()
-                        if new_client.data:
-                            client_id = new_client.data[0]['id']
-                            print(f"✓ Client created during login with ID {client_id} (name not set yet)")
-                    
-                    # Store client_id in session for later use
-                    if client_id:
-                        session['client_id'] = client_id
-                except Exception as e:
-                    # Log but don't fail login
-                    print(f"Warning: Could not create/check client record: {e}")
-
-            # If company, ensure they exist in Companies and Farmer tables
-            if user_type == 'company':
-                try:
-                    sb = get_authenticated_supabase()
-                    # Check if company exists
-                    company_result = sb.table('Companies').select('id').eq('emailaddress', email).limit(1).execute()
-                    
-                    company_id = None
-                    if company_result.data and len(company_result.data) > 0:
-                        company_id = company_result.data[0]['id']
-                    else:
-                        # Create Company record if it doesn't exist
-                        # Try to get company name from user metadata if available
-                        company_name = email.split('@')[0].capitalize()  # Default to email prefix
-                        if hasattr(user, 'user_metadata') and user.user_metadata:
-                            if 'company_name' in user.user_metadata:
-                                company_name = user.user_metadata['company_name']
-                        
-                        new_company = sb.table('Companies').insert({
-                            "name": company_name,
-                            "emailaddress": email,
-                            "created_at": datetime.utcnow().isoformat()
-                        }).execute()
-                        if new_company.data:
-                            company_id = new_company.data[0]['id']
-                            print(f"✓ Company '{company_name}' created during login with ID {company_id}")
-                    
-                    # Check if farmer exists
-                    farmer_result = sb.table('Farmer').select('id').eq('emailadress', email).limit(1).execute()
-                    if not farmer_result.data or len(farmer_result.data) == 0:
-                        # Create farmer record linked to company
-                        farmer_data = {
-                            "emailadress": email,
-                            "created_at": datetime.utcnow().isoformat()
-                        }
-                        if company_id:
-                            farmer_data["company_id"] = company_id
-                        sb.table('Farmer').insert(farmer_data).execute()
-                except Exception as e:
-                    # Log but don't fail login
-                    print(f"Warning: Could not create/check company record: {e}")
-            
-            flash("Succesvol ingelogd! Welkom terug.", "success")
-            # Redirect based on user type
+            flash("Succesvol ingelogd zonder wachtwoord.", "success")
+            # Redirect op basis van type
             if user_type == 'company':
                 return redirect(url_for('routes.company_dashboard'))
             elif user_type == 'driver':
                 return redirect(url_for('routes.driver_dashboard'))
             else:
                 return redirect(url_for('routes.profile'))
-            
-        except Exception as e:
-            # Better error extraction from Supabase Python client
-            error_msg = ""
-            error_dict = {}
-            
-            # Try to extract error from Supabase exception
-            if hasattr(e, 'message'):
-                error_msg = str(e.message)
-            elif hasattr(e, 'args') and len(e.args) > 0:
-                error_msg = str(e.args[0])
-            else:
-                error_msg = str(e)
-            
-            # Check for Supabase API error response
-            if hasattr(e, 'response'):
-                try:
-                    if hasattr(e.response, 'json'):
-                        error_dict = e.response.json()
-                        if 'message' in error_dict:
-                            error_msg = error_dict['message']
-                        elif 'error' in error_dict:
-                            if isinstance(error_dict['error'], dict):
-                                if 'message' in error_dict['error']:
-                                    error_msg = error_dict['error']['message']
-                            else:
-                                error_msg = str(error_dict['error'])
-                except:
-                    pass
-            
-            # Log full error for debugging
-            import traceback
-            print(f"Login error: {type(e).__name__}: {error_msg}")
-            print(f"Full exception: {e}")
-            print(f"Traceback: {traceback.format_exc()}")
-            
-            error_lower = error_msg.lower()
-            # Provide more specific error messages
-            if "invalid login credentials" in error_lower or ("invalid" in error_lower and "credentials" in error_lower):
-                flash("Ongeldige inloggegevens. Controleer je e-mailadres en wachtwoord.", "error")
-            elif "email logins are disabled" in error_lower or "email provider disabled" in error_lower:
-                flash("Email authenticatie is uitgeschakeld in Supabase. Ga naar Dashboard > Auth > Providers > Email en schakel de Email provider AAN (maar laat 'Confirm email' UIT staan).", "error")
-            elif "email not confirmed" in error_lower or "email_confirmed_at" in error_lower or "email verification" in error_lower:
-                # Email verification is still required by Supabase
-                # User needs to either disable it in dashboard or confirm email
-                flash("Email verificatie is nog vereist in Supabase. Ga naar Supabase Dashboard > Auth > Providers > Email en schakel 'Confirm email' UIT, of bevestig je email via de link in je inbox.", "error")
-            elif "too many requests" in error_lower or "rate limit" in error_lower:
-                flash("Te veel pogingen. Wacht even en probeer het later opnieuw.", "error")
-            else:
-                # Show user-friendly message but log full details
-                flash(f"Inloggen mislukt. Error: {error_msg[:100]}. Probeer het later opnieuw of neem contact op als het probleem aanhoudt.", "error")
-            return render_template('login.html', user_type=user_type)
 
-    return render_template('login.html', user_type=user_type)
+        except Exception as e:
+            import traceback
+            print(f"Login error (username-only): {e}")
+            print(traceback.format_exc())
+            flash(f"Inloggen mislukt. Fout: {e}", "error")
+            return render_template('login.html')
+
+    return render_template('login.html')
 
 
 @bp.route('/signup', methods=['GET', 'POST'])
 def signup():
-    # Get user_type from query parameter, form, or session
-    user_type = request.args.get('user_type') or request.form.get('user_type') or session.get('selected_user_type', 'customer')
+    # user_type kan nu direct op het formulier gekozen worden
+    user_type = request.args.get('user_type') or request.form.get('user_type') or 'customer'
     if user_type not in ['company', 'customer', 'driver']:
         user_type = 'customer'
-    
+
     if request.method == 'POST':
-        email = request.form.get('email', '').strip()
-        password = request.form.get('password', '')
-        
-        # Validation
-        if not email:
-            flash("E-mailadres is verplicht.", "error")
+        username = request.form.get('username', '').strip()
+        first_name = request.form.get('first_name', '').strip()
+        last_name = request.form.get('last_name', '').strip()
+
+        if not username:
+            flash("Gebruikersnaam is verplicht.", "error")
             return render_template('signup.html', user_type=user_type)
-        
-        if not password:
-            flash("Wachtwoord is verplicht.", "error")
+
+        if not first_name:
+            flash("Voornaam is verplicht.", "error")
             return render_template('signup.html', user_type=user_type)
-        
-        if not validate_email(email):
-            flash("Voer een geldig e-mailadres in (bijv. naam@voorbeeld.com).", "error")
-            return render_template('signup.html', user_type=user_type)
-        
-        is_valid, password_error = validate_password(password)
-        if not is_valid:
-            flash(password_error, "error")
+        if not last_name:
+            flash("Achternaam is verplicht.", "error")
             return render_template('signup.html', user_type=user_type)
 
         try:
             if supabase is None:
                 flash("Supabase is niet geconfigureerd. Neem contact op met de beheerder.", "error")
                 return render_template('signup.html', user_type=user_type)
-            
-            # Specify redirect URL for email verification (use port 5000 where Flask runs)
-            redirect_url = request.url_root.rstrip('/')  # Get current base URL (e.g., http://localhost:5000)
-            result = supabase.auth.sign_up({
-                "email": email, 
-                "password": password,
-                "options": {
-                    "email_redirect_to": f"{redirect_url}/login"
-                }
-            })
-            
-            if result.user is None:
-                flash("Registratie mislukt. Het account kon niet worden aangemaakt. Probeer het opnieuw.", "error")
-                return render_template('signup.html', user_type=user_type)
 
-            # If customer, create Client record in Supabase
+            sb = get_authenticated_supabase()
+
             if user_type == 'customer':
-                # Get first name and last name from form (required for customers)
-                first_name = request.form.get('first_name', '').strip()
-                last_name = request.form.get('last_name', '').strip()
-                
-                if not first_name:
-                    flash("Voornaam is verplicht voor klant accounts.", "error")
-                    return render_template('signup.html', user_type=user_type)
-                if not last_name:
-                    flash("Achternaam is verplicht voor klant accounts.", "error")
-                    return render_template('signup.html', user_type=user_type)
-                
-                try:
-                    # Sign in immediately after signup to get proper session tokens
-                    print(f"Signing in after signup to get session for client creation...")
-                    signin_result = supabase.auth.sign_in_with_password({"email": email, "password": password})
-                    
-                    if not signin_result.session:
-                        print(f"✗ Failed to get session after signup")
-                        flash("Account aangemaakt, maar kon niet inloggen. Probeer opnieuw in te loggen.", "warning")
-                        return redirect(url_for('routes.login', user_type=user_type))
-                    
-                    # Store session tokens
-                    session['sb_access_token'] = signin_result.session.access_token
-                    session['sb_refresh_token'] = signin_result.session.refresh_token
-                    session['sb_user_id'] = signin_result.user.id
-                    session['email'] = email
-                    session['user_type'] = user_type
-                    session.modified = True
-                    print(f"✓ Session obtained for client creation - Access token: {signin_result.session.access_token[:20]}...")
-                    
-                    # Create a fresh authenticated client with the session (don't use get_authenticated_supabase here)
-                    sb = create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
-                    sb.auth.set_session(
-                        access_token=signin_result.session.access_token,
-                        refresh_token=signin_result.session.refresh_token
-                    )
-                    
-                    # Verify authentication before proceeding
-                    try:
-                        auth_user = sb.auth.get_user()
-                        print(f"✓ Verified authenticated user: {auth_user.user.email if auth_user.user else 'None'}")
-                        if not auth_user.user or auth_user.user.email != email:
-                            print(f"✗ Authentication mismatch: expected {email}, got {auth_user.user.email if auth_user.user else 'None'}")
-                            flash("Account aangemaakt, maar authenticatie mislukt. Log opnieuw in.", "warning")
-                            return redirect(url_for('routes.login', user_type=user_type))
-                    except Exception as auth_error:
-                        print(f"✗ Authentication verification failed: {auth_error}")
-                        import traceback
-                        traceback.print_exc()
-                        flash("Account aangemaakt, maar authenticatie mislukt. Log opnieuw in.", "warning")
-                        return redirect(url_for('routes.login', user_type=user_type))
-                    
-                    # Check if client already exists
-                    existing_client = sb.table('Client').select('id, Name, Lastname').eq('emailaddress', email).limit(1).execute()
-                    
-                    if existing_client.data and len(existing_client.data) > 0:
-                        client_id = existing_client.data[0]['id']
-                        session['client_id'] = client_id
-                        # Update name if different
-                        if existing_client.data[0].get('Name') != first_name or existing_client.data[0].get('Lastname') != last_name:
-                            sb.table('Client').update({
-                                "Name": first_name,
-                                "Lastname": last_name
-                            }).eq('id', client_id).execute()
-                        session['first_name'] = first_name
-                        session['last_name'] = last_name
-                        print(f"✓ Client already exists with ID {client_id}, name updated")
-                    else:
-                        # Create Client record with name and lastname
-                        print(f"Creating Client record for {email} with Name: {first_name}, Lastname: {last_name}")
-                        try:
-                            client_result = sb.table('Client').insert({
-                                "emailaddress": email,
-                                "Name": first_name,
-                                "Lastname": last_name,
-                                "created_at": datetime.utcnow().isoformat()
-                            }).execute()
-                            
-                            print(f"Client insert result: {client_result}")
-                            
-                            if client_result.data and len(client_result.data) > 0:
-                                client_id = client_result.data[0]['id']
-                                session['client_id'] = client_id
-                                session['first_name'] = first_name
-                                session['last_name'] = last_name
-                                print(f"✓ Client successfully created with ID {client_id}, Name: {first_name} {last_name}")
-                            else:
-                                print(f"✗ Client creation returned no data: {client_result}")
-                                flash("Account aangemaakt, maar klantgegevens konden niet worden opgeslagen. Log opnieuw in om dit te corrigeren.", "warning")
-                        except Exception as insert_error:
-                            print(f"✗ Error during Client insert: {insert_error}")
-                            import traceback
-                            traceback.print_exc()
-                            flash("Account aangemaakt, maar klantgegevens konden niet worden opgeslagen. Log opnieuw in om dit te corrigeren.", "warning")
-                except Exception as e:
-                    print(f"Warning: Could not create client record: {e}")
-                    import traceback
-                    traceback.print_exc()
-                    flash("Account aangemaakt, maar klantgegevens konden niet worden opgeslagen. Log opnieuw in om dit te corrigeren.", "warning")
+                # Bestaat klant al?
+                existing = sb.table('Client').select('id').eq('emailaddress', username).limit(1).execute()
+                if existing.data and len(existing.data) > 0:
+                    flash("Er bestaat al een klant met deze gebruikersnaam. Log in zonder wachtwoord.", "info")
+                    return redirect(url_for('routes.login', user_type=user_type))
 
-            # If company, create Company record and Farmer record in Supabase
-            # We need to sign in first to get proper authentication for RLS
-            if user_type == 'company':
-                # Get company name from form (required for company signup)
-                company_name = request.form.get('company_name', '').strip()
-                if not company_name:
-                    flash("Bedrijfsnaam is verplicht voor bedrijf accounts.", "error")
-                    return render_template('signup.html', user_type=user_type)
-                
-                company_id = None
-                try:
-                    # Sign in immediately after signup to get proper session tokens
-                    # This is necessary because signup doesn't always return a session
-                    print(f"Signing in after signup to get session for company creation...")
-                    signin_result = supabase.auth.sign_in_with_password({"email": email, "password": password})
-                    
-                    if signin_result.session:
-                        # Store session tokens
-                        session['sb_access_token'] = signin_result.session.access_token
-                        session['sb_refresh_token'] = signin_result.session.refresh_token
-                        session['sb_user_id'] = signin_result.user.id
-                        session['email'] = email
-                        session['user_type'] = user_type
-                        session.modified = True
-                        print(f"✓ Session obtained for company creation")
-                        
-                        # Now use authenticated client to create company
-                        sb = get_authenticated_supabase()
-                        
-                        # Verify authentication by checking current user
-                        try:
-                            current_user_check = sb.auth.get_user()
-                            print(f"✓ Verified authentication - Current user: {current_user_check.user.email if current_user_check.user else 'None'}")
-                            if current_user_check.user and current_user_check.user.email != email:
-                                print(f"⚠ Warning: Authenticated as {current_user_check.user.email}, but signing up as {email}")
-                        except Exception as verify_error:
-                            print(f"⚠ Could not verify authentication: {verify_error}")
-                        
-                        # Check if company already exists
-                        print(f"Checking if company exists for {email}...")
-                        existing_company = sb.table('Companies').select('id').eq('emailaddress', email).limit(1).execute()
-                        
-                        if existing_company.data and len(existing_company.data) > 0:
-                            company_id = existing_company.data[0]['id']
-                            # Update company name if it exists but name is different
-                            sb.table('Companies').update({
-                                "name": company_name
-                            }).eq('id', company_id).execute()
-                            print(f"✓ Company exists, name updated to '{company_name}'")
-                        else:
-                            # Create Company record with provided company name
-                            print(f"Creating company '{company_name}' for {email}...")
-                            print(f"  Using authenticated client with email: {email}")
-                            
-                            try:
-                                company_result = sb.table('Companies').insert({
-                                    "name": company_name,
-                                    "emailaddress": email,
-                                    "created_at": datetime.utcnow().isoformat()
-                                }).execute()
-                                
-                                if company_result.data and len(company_result.data) > 0:
-                                    company_id = company_result.data[0]['id']
-                                    print(f"✓ Company '{company_name}' successfully created with ID {company_id}")
-                                else:
-                                    print(f"✗ Company creation returned no data")
-                                    print(f"  Response: {company_result}")
-                            except Exception as insert_error:
-                                print(f"✗ Error during company insert: {insert_error}")
-                                import traceback
-                                traceback.print_exc()
-                                raise  # Re-raise to be caught by outer exception handler
-                        
-                        # Create farmer record linked to company
-                        if company_id:
-                            farmer_data = {
-                                "emailadress": email,
-                                "created_at": datetime.utcnow().isoformat(),
-                                "company_id": company_id
-                            }
-                            sb.table('Farmer').insert(farmer_data).execute()
-                            print(f"✓ Farmer record created and linked to company {company_id}")
-                            
-                            flash(f"Account en bedrijf '{company_name}' succesvol aangemaakt!", "success")
-                        else:
-                            flash(f"Account aangemaakt, maar bedrijf '{company_name}' kon niet worden aangemaakt. Log in om het bedrijf aan te maken.", "warning")
-                    else:
-                        print(f"⚠ No session returned from signin after signup")
-                        flash(f"Account aangemaakt. Log in om het bedrijf '{company_name}' aan te maken.", "warning")
-                        
-                except Exception as e:
-                    error_msg = str(e)
-                    print(f"✗ Error creating company during signup: {error_msg}")
-                    import traceback
-                    traceback.print_exc()
-                    flash(f"Account aangemaakt. Log in om het bedrijf '{company_name}' aan te maken.", "warning")
-            else:
-                # Not a company user - show success message
-                # Store session tokens if available from signup
-                if getattr(result, 'session', None):
-                    session['sb_access_token'] = result.session.access_token
-                    session['sb_refresh_token'] = result.session.refresh_token
-                    session['sb_user_id'] = result.user.id
-                    session['email'] = email
-                    session['user_type'] = user_type
-                    session.modified = True
-                flash(f"Account aangemaakt voor {email}! Controleer je inbox en klik op de verificatielink om je e-mailadres te bevestigen.", "success")
-            
+                sb.table('Client').insert({
+                    "emailaddress": username,
+                    "Name": first_name,
+                    "Lastname": last_name,
+                    "created_at": datetime.utcnow().isoformat()
+                }).execute()
+
+            elif user_type == 'company':
+                existing = sb.table('Companies').select('id').eq('emailaddress', username).limit(1).execute()
+                if existing.data and len(existing.data) > 0:
+                    flash("Er bestaat al een bedrijf met deze gebruikersnaam. Log in zonder wachtwoord.", "info")
+                    return redirect(url_for('routes.login', user_type=user_type))
+
+                company_result = sb.table('Companies').insert({
+                    "name": username,  # gebruik gebruikersnaam als bedrijfsnaam
+                    "emailaddress": username,
+                    "created_at": datetime.utcnow().isoformat()
+                }).execute()
+
+                # Optioneel: ook een Farmer-record aanmaken
+                if company_result.data and len(company_result.data) > 0:
+                    company_id = company_result.data[0]['id']
+                    sb.table('Farmer').insert({
+                        "emailadress": username,
+                        "created_at": datetime.utcnow().isoformat(),
+                        "company_id": company_id
+                    }).execute()
+
+            elif user_type == 'driver':
+                existing = sb.table('Drivers').select('id').eq('email_address', username).limit(1).execute()
+                if existing.data and len(existing.data) > 0:
+                    flash("Er bestaat al een chauffeur met deze gebruikersnaam. Log in zonder wachtwoord.", "info")
+                    return redirect(url_for('routes.login', user_type=user_type))
+
+                sb.table('Drivers').insert({
+                    "email_address": username,
+                    "name": f"{first_name} {last_name}".strip(),
+                    "created_at": datetime.utcnow().isoformat()
+                }).execute()
+
+            flash("Account aangemaakt. Je kunt nu inloggen met je gebruikersnaam (zonder wachtwoord).", "success")
             return redirect(url_for('routes.login', user_type=user_type))
-            
+
         except Exception as e:
-            # Extract error message from Supabase exception
-            error_msg = ""
-            error_dict = {}
-            
-            # Try to get error from Supabase exception structure
-            if hasattr(e, 'message'):
-                error_msg = str(e.message)
-            elif hasattr(e, 'args') and len(e.args) > 0:
-                error_msg = str(e.args[0])
-            else:
-                error_msg = str(e)
-            
-            # Check if it's a Supabase API error response (common structure)
-            if hasattr(e, 'response'):
-                try:
-                    if hasattr(e.response, 'json'):
-                        error_dict = e.response.json()
-                        if 'message' in error_dict:
-                            error_msg = error_dict['message']
-                        elif 'error' in error_dict:
-                            if isinstance(error_dict['error'], dict):
-                                if 'message' in error_dict['error']:
-                                    error_msg = error_dict['error']['message']
-                            else:
-                                error_msg = str(error_dict['error'])
-                    elif hasattr(e.response, 'text'):
-                        # Sometimes it's plain text
-                        error_msg = e.response.text
-                except Exception as parse_error:
-                    print(f"Error parsing response: {parse_error}")
-            
-            # Also check if error is a dict-like object
-            if isinstance(e, dict):
-                if 'message' in e:
-                    error_msg = e['message']
-                elif 'error' in e:
-                    error_msg = str(e['error'])
-            
-            # Log full error for debugging
-            print(f"Signup error: {type(e).__name__}: {error_msg}")
-            print(f"Full exception: {e}")
-            if error_dict:
-                print(f"Error dict: {error_dict}")
-            
-            # Provide more specific error messages
-            error_lower = error_msg.lower()
-            if "user already registered" in error_lower or "already exists" in error_lower or "duplicate" in error_lower:
-                flash(f"Dit e-mailadres ({email}) is al geregistreerd. Gebruik een ander e-mailadres of log in met je bestaande account.", "error")
-            elif "invalid email" in error_lower or ("email" in error_lower and "invalid" in error_lower):
-                # Check if it's actually a valid email format according to our validation
-                if validate_email(email):
-                    # Our validation passed, but Supabase rejected it - could be domain validation or config issue
-                    flash(f"Het e-mailadres '{email}' heeft een geldig formaat, maar wordt door Supabase afgewezen. Dit kan komen door: (1) strikte domeinvalidatie in Supabase, (2) het e-mailadres bestaat niet, of (3) een configuratieprobleem. Probeer een ander e-mailadres of controleer de Supabase-instellingen.", "error")
-                else:
-                    flash("Ongeldig e-mailadres. Controleer de spelling en probeer het opnieuw.", "error")
-            elif "password" in error_lower and ("weak" in error_lower or "strength" in error_lower):
-                flash("Wachtwoord is te zwak. Gebruik minimaal 6 tekens en combineer letters en cijfers.", "error")
-            elif "too many requests" in error_lower or "rate limit" in error_lower:
-                flash("Te veel pogingen. Wacht even en probeer het later opnieuw.", "error")
-            else:
-                # Show the actual error message but in a user-friendly way
-                flash(f"Registratie mislukt: {error_msg}. Probeer het later opnieuw of neem contact op als het probleem aanhoudt.", "error")
+            import traceback
+            print(f"Signup error (no-auth): {e}")
+            print(traceback.format_exc())
+            flash(f"Registratie mislukt. Fout: {e}", "error")
             return render_template('signup.html', user_type=user_type)
 
     return render_template('signup.html', user_type=user_type)
-
-
-@bp.route('/forgot-password', methods=['GET', 'POST'])
-def forgot_password():
-    # Check for error in URL (Supabase redirects with hash fragments that get converted)
-    error_code = request.args.get('error_code') or request.args.get('error')
-    error_description = request.args.get('error_description')
-    
-    if error_code:
-        # Decode URL-encoded error description
-        if error_description:
-            error_description = unquote_plus(error_description)
-        
-        if error_code == 'otp_expired' or 'expired' in str(error_code).lower():
-            if error_description:
-                flash(f"De reset link is verlopen: {error_description}. Vraag een nieuwe reset link aan.", "error")
-            else:
-                flash("De reset link is verlopen. Vraag een nieuwe reset link aan.", "error")
-        elif error_code == 'access_denied':
-            if error_description:
-                flash(f"Toegang geweigerd: {error_description}. De reset link is mogelijk ongeldig of reeds gebruikt.", "error")
-            else:
-                flash("Toegang geweigerd. De reset link is mogelijk ongeldig of reeds gebruikt.", "error")
-        elif error_description:
-            flash(f"Fout: {error_description}. Vraag een nieuwe reset link aan.", "error")
-        else:
-            flash(f"Er is een fout opgetreden ({error_code}). Vraag een nieuwe reset link aan.", "error")
-    
-    if request.method == 'POST':
-        email = request.form.get('email', '').strip()
-        
-        if not email:
-            flash("E-mailadres is verplicht.", "error")
-            return render_template('forgot_password.html')
-        
-        if not validate_email(email):
-            flash("Voer een geldig e-mailadres in (bijv. naam@voorbeeld.com).", "error")
-            return render_template('forgot_password.html')
-        
-        try:
-            # Get redirect URL for password reset
-            redirect_url = request.url_root.rstrip('/')
-            result = supabase.auth.reset_password_for_email(
-                email,
-                {
-                    "redirect_to": f"{redirect_url}/reset-password"
-                }
-            )
-            
-            # Supabase doesn't throw an error if email doesn't exist (security)
-            flash(f"Als het e-mailadres '{email}' bestaat, hebben we een wachtwoord reset link gestuurd. Controleer je inbox (en spam folder).", "success")
-            return redirect(url_for('routes.login'))
-            
-        except Exception as e:
-            error_msg = str(e)
-            error_lower = error_msg.lower()
-            
-            if "too many requests" in error_lower or "rate limit" in error_lower:
-                flash("Te veel pogingen. Wacht even en probeer het later opnieuw.", "error")
-            else:
-                flash(f"Fout bij het versturen van reset link: {error_msg}. Probeer het later opnieuw.", "error")
-            return render_template('forgot_password.html')
-    
-    return render_template('forgot_password.html')
-
-
-@bp.route('/reset-password', methods=['GET', 'POST'])
-def reset_password():
-    # Debug logging
-    print(f"Reset password route called - Method: {request.method}")
-    print(f"Query args: {dict(request.args)}")
-    
-    # Check for errors in URL (from Supabase redirects)
-    error_code = request.args.get('error_code') or request.args.get('error')
-    error_description = request.args.get('error_description')
-    
-    if error_code:
-        # Decode URL-encoded error description
-        if error_description:
-            error_description = unquote_plus(error_description)
-        
-        # Redirect to forgot-password with error message
-        if error_code == 'otp_expired' or 'expired' in str(error_code).lower():
-            flash("De reset link is verlopen. Vraag een nieuwe reset link aan.", "error")
-        elif error_code == 'access_denied':
-            flash("Toegang geweigerd. De reset link is mogelijk ongeldig of reeds gebruikt.", "error")
-        elif error_description:
-            flash(f"Fout: {error_description.replace('+', ' ')}", "error")
-        else:
-            flash(f"Er is een fout opgetreden: {error_code}. Vraag een nieuwe reset link aan.", "error")
-        return redirect(url_for('routes.forgot_password'))
-    
-    # Get token from query parameters (Supabase sends this in the email link)
-    # Supabase can send either token_hash or access_token
-    token_hash = request.args.get('token_hash')
-    access_token = request.args.get('access_token')
-    type_param = request.args.get('type', 'recovery')
-    
-    # If no token found, show error but still render template (JS will handle hash conversion)
-    if not token_hash and not access_token:
-        print("WARNING: No token_hash or access_token found in query parameters")
-        # Don't redirect immediately - let JS convert hash fragments first
-        return render_template('reset_password.html', token_hash=None, type=None)
-    
-    if type_param != 'recovery':
-        flash("Ongeldige reset link type. Vraag een nieuwe reset link aan.", "error")
-        return redirect(url_for('routes.forgot_password'))
-    
-    if request.method == 'POST':
-        # Get tokens from form if not in URL (they might be in hidden form fields)
-        form_token_hash = request.form.get('token_hash') or token_hash
-        form_access_token = request.form.get('access_token') or access_token
-        form_type = request.form.get('type') or type_param
-        
-        password = request.form.get('password', '')
-        password_confirm = request.form.get('password_confirm', '')
-        
-        print(f"POST request - token_hash: {bool(form_token_hash)}, access_token: {bool(form_access_token)}, type: {form_type}")
-        
-        if not password:
-            flash("Wachtwoord is verplicht.", "error")
-            return render_template('reset_password.html', token_hash=form_token_hash or form_access_token, type=form_type)
-        
-        if password != password_confirm:
-            flash("Wachtwoorden komen niet overeen.", "error")
-            return render_template('reset_password.html', token_hash=form_token_hash or form_access_token, type=form_type)
-        
-        is_valid, password_error = validate_password(password)
-        if not is_valid:
-            flash(password_error, "error")
-            return render_template('reset_password.html', token_hash=form_token_hash or form_access_token, type=form_type)
-        
-        # Use form values
-        token_hash = form_token_hash
-        access_token = form_access_token
-        type_param = form_type
-        
-        try:
-            print(f"Attempting password reset with token_hash: {bool(token_hash)}, access_token: {bool(access_token)}")
-            
-            # If we have access_token, use exchange_code_for_session or update_user directly
-            if access_token:
-                print("Using access_token method for password reset")
-                # Create a client with the access token
-                sb_client = create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
-                # Set the session with the access token
-                try:
-                    # Try to exchange the access token for a session
-                    # Or use update_user with the access token
-                    # Supabase Python client might need different approach
-                    # For now, try verify_otp with token_hash if available
-                    if token_hash:
-                        result = sb_client.auth.verify_otp({
-                            "token_hash": token_hash,
-                            "type": type_param
-                        })
-                    else:
-                        # If only access_token, we need to set it as session
-                        # This is tricky - Supabase might have sent it differently
-                        # Try using exchange_code_for_session or update_user
-                        flash("Reset link format niet ondersteund. Probeer de link opnieuw of vraag een nieuwe aan.", "error")
-                        return render_template('reset_password.html', token_hash=token_hash, type=type_param)
-                except Exception as e:
-                    print(f"Error with access_token method: {e}")
-                    # Fall back to token_hash method
-                    if not token_hash:
-                        raise
-            
-            # Use token_hash method (standard Supabase password reset)
-            if token_hash:
-                print("Using token_hash method for password reset")
-                result = supabase.auth.verify_otp({
-                    "token_hash": token_hash,
-                    "type": type_param
-                })
-            else:
-                raise Exception("No token_hash or access_token provided")
-            
-            if result and result.user and result.session:
-                print(f"OTP verified successfully for user: {result.user.email}")
-                # Store session temporarily to update password
-                session['sb_user_id'] = result.user.id
-                session['email'] = result.user.email
-                session['sb_access_token'] = result.session.access_token
-                session['sb_refresh_token'] = result.session.refresh_token
-                
-                # Update the password while authenticated
-                print(f"Updating password for user: {result.user.email}")
-                # Use the authenticated client for password update
-                authenticated_sb = get_authenticated_supabase()
-                update_result = authenticated_sb.auth.update_user({
-                    "password": password
-                })
-                
-                if update_result.user:
-                    print(f"Password updated successfully for user: {update_result.user.email}")
-                    # Clear session after password update (user needs to login again)
-                    session.clear()
-                    flash("Wachtwoord succesvol gewijzigd! Je kunt nu inloggen met je nieuwe wachtwoord.", "success")
-                    return redirect(url_for('routes.login'))
-                else:
-                    print("Password update failed - no user in result")
-                    session.clear()
-                    flash("Wachtwoord kon niet worden gewijzigd. Probeer het opnieuw.", "error")
-            else:
-                print("OTP verification failed - no user or session")
-                flash("Reset link is ongeldig of verlopen. Vraag een nieuwe reset link aan.", "error")
-                return redirect(url_for('routes.forgot_password'))
-                
-        except Exception as e:
-            error_msg = str(e)
-            error_lower = error_msg.lower()
-            
-            if "expired" in error_lower or "invalid" in error_lower:
-                flash("Reset link is ongeldig of verlopen. Vraag een nieuwe reset link aan.", "error")
-                return redirect(url_for('routes.forgot_password'))
-            else:
-                flash(f"Fout bij het resetten van wachtwoord: {error_msg}. Probeer het later opnieuw.", "error")
-            return render_template('reset_password.html', token_hash=token_hash or access_token, type=type_param)
-    
-    # Render template with token info (use token_hash if available, otherwise access_token)
-    return render_template('reset_password.html', token_hash=token_hash or access_token, type=type_param)
 
 
 @bp.route('/profile', methods=['GET', 'POST'])
