@@ -150,23 +150,23 @@
       <div class="p-5 mb-4 bg-warning text-dark rounded-3">
         <div class="container-fluid py-5">
           <h1 class="display-5 fw-bold">🚚 Chauffeur Dashboard</h1>
-          <p class="col-md-8 fs-4">Beschikbare Routes</p>
-          <p class="col-md-8 fs-6 opacity-75">Accepteer routes voor je bedrijf</p>
+          <p class="col-md-8 fs-4">Mijn Toegewezen Taken</p>
+          <p class="col-md-8 fs-6 opacity-75">Taken die door het bedrijf aan jou zijn toegewezen</p>
         </div>
       </div>
     </div>
   </div>
 
-  {% if accepted_routes %}
+  {% if assigned_routes %}
   <div class="row g-4 mb-4">
     <div class="col-12">
-      <h3 class="mb-3">✅ Mijn Geaccepteerde Routes</h3>
+      <h3 class="mb-3">📋 Mijn Toegewezen Taken</h3>
     </div>
-    {% for route in accepted_routes %}
+    {% for route in assigned_routes %}
     <div class="col-md-6 col-lg-4">
       <div class="card shadow-sm border-0 h-100 border-success">
         <div class="card-header bg-success text-white">
-          <h6 class="mb-0">Route #{{ route.id }} ✓</h6>
+          <h6 class="mb-0">Taak #{{ route.id }} ✓</h6>
         </div>
         <div class="card-body">
           <p class="mb-2">
@@ -217,75 +217,9 @@
   </div>
   {% endif %}
 
-  {% if available_routes %}
-  <div class="row g-4 mb-4">
-    <div class="col-12">
-      <h3 class="mb-3">📋 Beschikbare Routes</h3>
-    </div>
-    {% for route in available_routes %}
-    <div class="col-md-6 col-lg-4">
-      <div class="card shadow-sm border-0 h-100">
-        <div class="card-header bg-warning text-dark">
-          <h6 class="mb-0">Route #{{ route.id }}</h6>
-        </div>
-        <div class="card-body">
-          <p class="mb-2">
-            <strong>Deadline:</strong><br>
-            {% if route.deadline %}
-              <span class="badge bg-success">{{ route.deadline }}</span>
-            {% else %}
-              <span class="text-muted">Geen deadline</span>
-            {% endif %}
-          </p>
-          <p class="mb-2">
-            <strong>Taak:</strong> <span class="badge bg-secondary">{{ route.task_type|default('-') }}</span>
-          </p>
-          <p class="mb-2">
-            <strong>Product:</strong> {{ route.product_type|default('-') }}
-          </p>
-          {% if route.address %}
-          <hr>
-          <p class="mb-1"><strong>Adres:</strong></p>
-          <p class="mb-2">
-            {{ route.address.street_name }} {{ route.address.house_number }}<br>
-            {{ route.address.city }}
-          </p>
-          {% if route.address.phone_number %}
-          <p class="mb-2">
-            <a href="tel:{{ route.address.phone_number }}" class="btn btn-sm btn-outline-primary">
-              📞 {{ route.address.phone_number }}
-            </a>
-          </p>
-          {% endif %}
-          {% endif %}
-          <div class="d-grid gap-2 mt-3">
-            {% if route.address %}
-            {% set full_address = route.address.street_name ~ ' ' ~ route.address.house_number ~ ', ' ~ route.address.city %}
-            <a 
-              href="https://www.google.com/maps/dir/?api=1&destination={{ full_address|replace(' ', '+') }}" 
-              target="_blank" 
-              class="btn btn-info w-100"
-            >
-              🗺️ Bekijk in Google Maps
-            </a>
-            {% endif %}
-            <form method="POST" action="{{ url_for('routes.driver_accept_route', order_id=route.id) }}" class="d-inline">
-              <button type="submit" class="btn btn-success w-100">✓ Accepteer Route</button>
-            </form>
-            <form method="POST" action="{{ url_for('routes.driver_reject_route', order_id=route.id) }}" class="d-inline">
-              <button type="submit" class="btn btn-outline-danger w-100">✗ Weiger Route</button>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}
-
-  {% if not accepted_routes and not available_routes %}
+  {% if not assigned_routes %}
   <div class="alert alert-info" role="alert">
-    Er zijn momenteel geen beschikbare routes. Nieuwe bestellingen voor jouw bedrijf verschijnen hier automatisch.
+    Er zijn momenteel geen taken aan jou toegewezen. Het bedrijf kan taken aan jou toewijzen via het bedrijf dashboard.
   </div>
   {% endif %}
 
