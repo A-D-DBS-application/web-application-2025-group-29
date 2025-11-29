@@ -632,6 +632,24 @@ def edit_order(order_id):
         except Exception as e:
             flash(f"Kon bedrijven niet ophalen: {e}", "error")
         
+        addresses = []
+        try:
+            client_id = session.get('client_id')
+            if not client_id:
+                customer_email = session.get('email')
+                if customer_email:
+                    client_result = sb.table('Client').select('id').eq('emailaddress', customer_email).limit(1).execute()
+                    if client_result.data and len(client_result.data) > 0:
+                        client_id = client_result.data[0]['id']
+                        session['client_id'] = client_id
+            
+            if client_id:
+                addresses_result = sb.table('Address').select('*').eq('client_id', client_id).order('created_at', desc=False).execute()
+                if addresses_result.data:
+                    addresses = addresses_result.data
+        except Exception as e:
+            flash(f"Warning: Kon adressen niet ophalen: {e}", "error")
+        
         # Prepare order info for template
         order_info = {
             'id': order_data.get('id'),
@@ -674,56 +692,44 @@ def edit_order(order_id):
                 
                 if not client_id:
                     flash("Klant niet gevonden.", "error")
-                    return render_template('edit_order.html', order=order_info, companies=companies)
+                    return render_template('edit_order.html', order=order_info, companies=companies, addresses=addresses)
                 
-                # Coerce house_number to integer if possible
-                house_number_raw = request.form.get("house_number")
+                # Get selected address_id from form
+                address_id_str = request.form.get("address_id")
+                if not address_id_str:
+                    flash("Selecteer een adres.", "error")
+                    return render_template('edit_order.html', order=order_info, companies=companies, addresses=addresses)
+                
                 try:
-                    house_number_val = int(house_number_raw) if house_number_raw is not None else None
-                except ValueError:
-                    house_number_val = None
-                
-                address_update_data = {
-                    "client_id": client_id,
-                    "street_name": request.form.get("street_name"),
-                    "house_number": house_number_val,
-                    "city": request.form.get("city"),
-                    "phone_number": request.form.get("phone_number")
-                }
-                
-                if order_info['address_id']:
-                    address_check = sb.table('Address').select('client_id').eq('id', order_info['address_id']).eq('client_id', client_id).limit(1).execute()
-                    if address_check.data and len(address_check.data) > 0:
-                        address_update_result = sb.table('Address').update(address_update_data).eq('id', order_info['address_id']).eq('client_id', client_id).execute()
-                    else:
-                        flash("Adres kan niet worden bijgewerkt omdat het niet aan jou toebehoort.", "error")
-                        return render_template('edit_order.html', order=order_info, companies=companies)
-                else:
-                    # If no address_id, create a new address
-                    address_result = sb.table('Address').insert(address_update_data).execute()
-                    if address_result.data and len(address_result.data) > 0:
-                        order_info['address_id'] = address_result.data[0]['id']
+                    selected_address_id = int(address_id_str)
+                    # Verify that the address belongs to this client
+                    address_check = sb.table('Address').select('id').eq('id', selected_address_id).eq('client_id', client_id).limit(1).execute()
+                    if not address_check.data or len(address_check.data) == 0:
+                        flash("Ongeldig adres geselecteerd.", "error")
+                        return render_template('edit_order.html', order=order_info, companies=companies, addresses=addresses)
+                    order_info['address_id'] = selected_address_id
+                except (ValueError, TypeError):
+                    flash("Ongeldig adres geselecteerd.", "error")
+                    return render_template('edit_order.html', order=order_info, companies=companies, addresses=addresses)
                 
                 company_id = request.form.get("company_id")
                 if not company_id:
                     flash("Bedrijf is verplicht. Selecteer een bedrijf.", "error")
-                    return render_template('edit_order.html', order=order_info, companies=companies)
+                    return render_template('edit_order.html', order=order_info, companies=companies, addresses=addresses)
                 
                 try:
                     company_id = int(company_id)
                 except (ValueError, TypeError):
                     flash("Ongeldig bedrijf geselecteerd.", "error")
-                    return render_template('edit_order.html', order=order_info, companies=companies)
+                    return render_template('edit_order.html', order=order_info, companies=companies, addresses=addresses)
                 
                 order_update_data = {
                     "deadline": request.form.get("deadline"),
                     "task_type": request.form.get("task_type"),
                     "product_type": request.form.get("product_type"),
-                    "company_id": company_id
+                    "company_id": company_id,
+                    "address_id": order_info['address_id']
                 }
-                
-                if order_info['address_id']:
-                    order_update_data["address_id"] = order_info['address_id']
                 
                 order_update_result = sb.table('Orders').update(order_update_data).eq('id', order_id).eq('customer_email', customer_email).execute()
                 
@@ -734,10 +740,10 @@ def edit_order(order_id):
                     flash("Bestelling kon niet worden bijgewerkt.", "error")
             except Exception as e:
                 flash(f"Fout bij het bijwerken van bestelling: {str(e)}", "error")
-                return render_template('edit_order.html', order=order_info, companies=companies)
+                return render_template('edit_order.html', order=order_info, companies=companies, addresses=addresses)
         
         # GET request - show edit form
-        return render_template('edit_order.html', order=order_info, companies=companies)
+        return render_template('edit_order.html', order=order_info, companies=companies, addresses=addresses)
     
     except Exception as e:
         flash(f"Fout bij het ophalen van bestelling: {str(e)}", "error")

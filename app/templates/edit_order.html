@@ -64,23 +64,25 @@
             {% endif %}
           </div>
           <div class="col-12 mt-3">
-            <h5 class="mb-2">Adresgegevens</h5>
-          </div>
-          <div class="col-md-8">
-            <label class="form-label">Straat</label>
-            <input type="text" name="street_name" class="form-control" placeholder="Straatnaam" value="{{ order.address.street_name if order.address else '' }}" required>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Huisnummer</label>
-            <input type="text" name="house_number" class="form-control" placeholder="Nr." value="{{ order.address.house_number if order.address else '' }}" required>
-          </div>
-          <div class="col-md-8">
-            <label class="form-label">Stad</label>
-            <input type="text" name="city" class="form-control" placeholder="Gemeente/Stad" value="{{ order.address.city if order.address else '' }}" required>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Telefoon</label>
-            <input type="text" name="phone_number" class="form-control" placeholder="Contactnummer" value="{{ order.address.phone_number if order.address else '' }}" required>
+            <h5 class="mb-2">Adres</h5>
+            {% if addresses and addresses|length > 0 %}
+            <div class="mb-3">
+              <label class="form-label">Selecteer een adres</label>
+              <select name="address_id" class="form-select" required>
+                <option value="" disabled>Kies een adres</option>
+                {% for address in addresses %}
+                <option value="{{ address.id }}" {% if order.address_id and order.address_id == address.id %}selected{% endif %}>
+                  {{ address.street_name }} {{ address.house_number }}, {{ address.city }} (Tel: {{ address.phone_number }})
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            {% else %}
+            <div class="alert alert-warning">
+              <strong>Geen adressen gevonden!</strong> 
+              Voeg eerst een adres toe in je profiel voordat je een bestelling bewerkt.
+            </div>
+            {% endif %}
           </div>
           <div class="col-12 d-grid d-md-flex justify-content-md-end gap-2">
             <a href="{{ url_for('routes.customer_orders') }}" class="btn btn-secondary">Annuleren</a>

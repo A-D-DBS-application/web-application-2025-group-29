@@ -28,6 +28,7 @@
           <div class="col-md-6">
             <label class="form-label">Gewicht (kg)</label>
             <input type="number" name="weight" class="form-control" placeholder="Bijv. 1000" step="0.01" min="0" required>
+            <small class="text-muted">Voer het gewicht in kilogrammen in</small>
           </div>
           <div class="col-md-6">
             <label class="form-label">Bedrijf</label>
@@ -77,11 +78,12 @@
                 </option>
                 {% endfor %}
               </select>
+              <small class="text-muted">Je kunt adressen beheren in je profiel.</small>
             </div>
             {% else %}
             <div class="alert alert-warning">
               <strong>Geen adressen gevonden!</strong> 
-              Voeg eerst een adres toe in je <a href="{{ url_for('routes.profile') }}">profiel</a> voordat je een bestelling plaatst.
+              Voeg eerst een adres toe in je profiel voordat je een bestelling plaatst.
             </div>
             {% endif %}
           </div>

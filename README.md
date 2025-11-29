@@ -207,7 +207,7 @@ De database bestaat uit de volgende tabellen:
 Zie `database_schema.sql` voor het volledige DDL schema met constraints, indexen en comments.
 
 ## ERD Model
-Het Entity Relationship Diagram is beschikbaar in: https://dbdiagram.io/d/AgriFLow-Group-29-692b1e01d6676488bae6585c
+Het Entity Relationship Diagram is beschikbaar in: ![alt text](<ERD model.png>)
 
 ## Project Structuur
 
