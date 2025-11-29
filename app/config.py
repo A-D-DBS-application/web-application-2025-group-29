@@ -5,7 +5,6 @@ from supabase import create_client, Client
 # Load environment variables from a local .env file if present
 load_dotenv()
 
-
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'Agriflowgroup29')
 
@@ -21,7 +20,6 @@ class Config:
     SESSION_COOKIE_SAMESITE = "Lax"
     # Set Secure=True automatically when running behind HTTPS in production
     SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true"
-
 
 # Create Supabase client with error handling
 try:

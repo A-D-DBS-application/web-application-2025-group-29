@@ -196,12 +196,7 @@ def login():
             session.modified = True
 
             flash("Succesvol ingelogd.", "success")
-            if user_type == 'company':
-                return redirect(url_for('routes.company_dashboard'))
-            elif user_type == 'driver':
-                return redirect(url_for('routes.driver_dashboard'))
-            else:
-                return redirect(url_for('routes.profile'))
+            return redirect(url_for('routes.home'))
             
         except Exception as e:
             flash(f"Inloggen mislukt. Fout: {e}", "error")
