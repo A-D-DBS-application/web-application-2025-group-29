@@ -63,7 +63,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_deadline ON "Orders"(deadline);
 COMMENT ON TABLE "Client" IS 'Stores customer (klant) information';
 COMMENT ON TABLE "Companies" IS 'Stores company/service provider (bedrijf) information';
 COMMENT ON TABLE "Drivers" IS 'Stores driver (chauffeur) information linked to companies';
-COMMENT ON TABLE "Address" IS 'Stores customer addresses (max 3 per customer enforced in application)';
+COMMENT ON TABLE "Address" IS 'Stores customer addresses';
 COMMENT ON TABLE "Orders" IS 'Stores customer orders/bookings with status tracking';
 
 COMMENT ON COLUMN "Orders".status IS 'Order status: pending, accepted, or completed';

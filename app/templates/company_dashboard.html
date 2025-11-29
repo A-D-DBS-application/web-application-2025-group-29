@@ -138,7 +138,7 @@
                       </form>
                       {% if order.suggested_driver and not order.driver_id %}
                         <small class="text-muted d-block mt-1">
-                          Score: {{ '%.0f'|format(order.suggested_driver.score) }}/100 • {{ order.suggested_driver.reason }}
+                          Aanbevolen: {{ order.suggested_driver.driver_name }}{% if order.suggested_driver.available_hours is defined %} ({{ '%.1f'|format(order.suggested_driver.available_hours) }}u beschikbaar){% endif %}
                         </small>
                       {% endif %}
                     {% else %}

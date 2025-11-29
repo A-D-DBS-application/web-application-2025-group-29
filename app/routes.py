@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, g
 from datetime import datetime
 from .config import supabase
-from .algorithms import calculate_priority_score, suggest_best_driver, sort_orders_by_priority, calculate_driver_workload_hours, calculate_order_time_hours
+from .algorithms import suggest_best_driver, sort_orders_by_priority, calculate_driver_workload_hours, calculate_order_time_hours
 bp = Blueprint('routes', __name__)
 
 def get_authenticated_supabase():
@@ -90,7 +90,7 @@ def home():
             assigned_routes = []
             
             if driver_id:
-                assigned_result = sb.table('Orders').select('*, Address(*), Companies(*)').eq('driver_id', driver_id).in_('status', ['accepted', 'completed']).order('deadline', desc=False).limit(50).execute()
+                assigned_result = sb.table('Orders').select('*, Address!orders_address_id_fkey(*), Companies(*)').eq('driver_id', driver_id).in_('status', ['accepted', 'completed']).order('deadline', desc=False).limit(50).execute()
                 
                 if assigned_result.data:
                     for order in assigned_result.data:
@@ -293,9 +293,6 @@ def signup():
 @login_required
 def profile():
     user_type = session.get('user_type', 'customer')
-    # Redirect driver to their dashboard
-    if user_type == 'driver':
-        return redirect(url_for('routes.driver_dashboard'))
     
     user_ctx = {
         "emailaddress": session.get('email', ''),
@@ -304,6 +301,24 @@ def profile():
     
     addresses = []
     
+    if user_type == 'driver':
+        try:
+            sb = get_authenticated_supabase()
+            driver_email = session.get('email')
+            if driver_email:
+                driver_result = sb.table('Drivers').select('id, name, company_id').eq('email_address', driver_email).limit(1).execute()
+                if driver_result.data and len(driver_result.data) > 0:
+                    driver_data = driver_result.data[0]
+                    driver_name = driver_data.get('name', '')
+                    if driver_name:
+                        user_ctx['display_name'] = driver_name
+                    company_id = driver_data.get('company_id')
+                    if company_id:
+                        company_result = sb.table('Companies').select('name').eq('id', company_id).limit(1).execute()
+                        if company_result.data and len(company_result.data) > 0:
+                            user_ctx['company_name'] = company_result.data[0].get('name', '')
+        except Exception:
+            pass
     
     if user_type == 'customer':
         first_name = session.get('first_name', '')
@@ -373,12 +388,6 @@ def add_address():
         
         if not client_id:
             flash("Klant niet gevonden.", "error")
-            return redirect(url_for('routes.profile'))
-        
-        # Check if customer already has 3 addresses
-        addresses_result = sb.table('Address').select('id').eq('client_id', client_id).execute()
-        if addresses_result.data and len(addresses_result.data) >= 3:
-            flash("Je hebt al het maximum aantal adressen (3). Verwijder eerst een adres.", "error")
             return redirect(url_for('routes.profile'))
         
         house_number_raw = request.form.get("house_number")
@@ -469,7 +478,7 @@ def customer_orders():
         sb = get_authenticated_supabase()
         customer_email = session.get('email')
         
-        orders_result = sb.table('Orders').select('*, Address(*), Companies(*)').eq('customer_email', customer_email).order('created_at', desc=True).limit(100).execute()
+        orders_result = sb.table('Orders').select('*, Address!orders_address_id_fkey(*), Companies(*)').eq('customer_email', customer_email).order('created_at', desc=True).limit(100).execute()
         
         orders = []
         if orders_result.data:
@@ -579,7 +588,7 @@ def edit_order(order_id):
     customer_email = session.get('email')
     
     try:
-        order_result = sb.table('Orders').select('*, Address(*), Companies(*)').eq('id', order_id).eq('customer_email', customer_email).limit(1).execute()
+        order_result = sb.table('Orders').select('*, Address!orders_address_id_fkey(*), Companies(*)').eq('id', order_id).eq('customer_email', customer_email).limit(1).execute()
         
         if not order_result.data or len(order_result.data) == 0:
             flash("Bestelling niet gevonden of je hebt geen toegang tot deze bestelling.", "error")
@@ -765,7 +774,7 @@ def company_dashboard():
         drivers_result = sb.table('Drivers').select('id, name, email_address').eq('company_id', company_id).order('name').execute()
         drivers = drivers_result.data if drivers_result.data else []
         
-        orders_result = sb.table('Orders').select('*, Address(*)').eq('company_id', company_id).order('created_at', desc=True).limit(100).execute()
+        orders_result = sb.table('Orders').select('*, Address!orders_address_id_fkey(*)').eq('company_id', company_id).order('created_at', desc=True).limit(100).execute()
         all_orders_raw = orders_result.data if orders_result.data else []
         
         driver_workload_hours = {}
@@ -1044,7 +1053,7 @@ def driver_dashboard():
             return redirect(url_for('routes.driver_select_company'))
         
         # Get accepted routes for this driver (sorted by deadline)
-        orders_result = sb.table('Orders').select('*, Address(*), Companies(*)').eq('driver_id', driver_id).in_('status', ['accepted', 'completed']).order('deadline', desc=False).limit(100).execute()
+        orders_result = sb.table('Orders').select('*, Address!orders_address_id_fkey(*), Companies(*)').eq('driver_id', driver_id).in_('status', ['accepted', 'completed']).order('deadline', desc=False).limit(100).execute()
         
         orders = []
         if orders_result.data:

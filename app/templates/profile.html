@@ -18,11 +18,15 @@
           {% endif %}
           <dt class="col-sm-3">E-mail</dt>
           <dd class="col-sm-9">{{ user['emailaddress'] }}</dd>
+          {% if user.get('company_name') %}
+          <dt class="col-sm-3">Bedrijf</dt>
+          <dd class="col-sm-9">{{ user['company_name'] }}</dd>
+          {% endif %}
         </dl>
         
         {% if user['user_type'] == 'customer' %}
         <div class="mt-4">
-          <h5 class="mb-3">Mijn Adressen (max 3)</h5>
+          <h5 class="mb-3">Mijn Adressen</h5>
           {% if addresses %}
             <div class="list-group mb-3">
               {% for address in addresses %}
@@ -42,13 +46,9 @@
             <p class="text-muted">Nog geen adressen toegevoegd.</p>
           {% endif %}
           
-          {% if addresses|length < 3 %}
           <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addAddressModal">
             + Adres toevoegen
           </button>
-          {% else %}
-          <p class="text-muted"><small>Maximum aantal adressen bereikt (3). Verwijder een adres om een nieuw adres toe te voegen.</small></p>
-          {% endif %}
         </div>
         
         <!-- Modal voor adres toevoegen -->

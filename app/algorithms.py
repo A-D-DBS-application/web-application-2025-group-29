@@ -9,13 +9,11 @@ TASK_TIMES_PER_1000KG = {
     'mengen': 1.0
 }
 
-WORKDAY_HOURS = 10.0
-
-TRAVEL_TIME_HOURS = 1.0
+WORKDAY_HOURS = 12.0
+TRAVEL_TIME_HOURS = 0.75
 
 def calculate_priority_score(order: Dict) -> float:
     score = 0.0
-    # Factor 1: Deadline urgentie (0-50 punten)
     if order.get('deadline'):
         try:
             deadline = datetime.strptime(order['deadline'], '%Y-%m-%d').date()
@@ -37,7 +35,6 @@ def calculate_priority_score(order: Dict) -> float:
     else:
         score += 10
     
-    # Factor 2: Gewicht (0-30 punten)
     weight = order.get('Weight') or order.get('weight') or 0
     if weight:
         try:
@@ -46,7 +43,6 @@ def calculate_priority_score(order: Dict) -> float:
         except (ValueError, TypeError):
             pass
     
-    # Factor 3: Leeftijd van bestelling (0-20 punten)
     if order.get('created_at'):
         try:
             created_at = datetime.fromisoformat(order['created_at'].replace('Z', '+00:00'))
@@ -93,7 +89,6 @@ def calculate_driver_workload_hours(driver_id: int, orders: List[Dict], target_d
                     except (ValueError, TypeError):
                         pass  # Als deadline niet parsebaar is, tel mee
             
-            # Bereken tijd voor deze order
             order_time = calculate_order_time_hours(order)
             total_hours += order_time
     
@@ -107,10 +102,8 @@ def calculate_driver_score(driver: Dict, order: Dict, driver_workload_hours: Dic
     if not driver_id:
         return 0.0
     
-    # Bereken tijd nodig voor deze nieuwe order
     order_time = calculate_order_time_hours(order)
     
-    # Bepaal deadline datum van de nieuwe order
     order_deadline_date = None
     if order.get('deadline'):
         try:
@@ -134,8 +127,7 @@ def calculate_driver_score(driver: Dict, order: Dict, driver_workload_hours: Dic
             # Taak past niet meer op deadline dag
             score -= 30  # Grote penalty
             return max(0.0, score)  # Return lage score, niet geschikt
-    # Factor 2: Totale workload (0-30 punten)
-    # Minder uren geboekt = hogere score
+
     total_hours = driver_workload_hours.get(driver_id, 0.0)
     if total_hours == 0:
         score += 30  # Geen taken = perfect beschikbaar
@@ -147,8 +139,7 @@ def calculate_driver_score(driver: Dict, order: Dict, driver_workload_hours: Dic
         score += 5  # Veel taken
     else:
         score -= 10  # Zeer druk
-    # Factor 3: Deadline compatibiliteit bonus (0-20 punten)
-    # Als deadline bekend is en er is ruimte, bonus
+
     if order_deadline_date:
         hours_on_deadline_day = calculate_driver_workload_hours(driver_id, all_orders, order_deadline_date)
         if hours_on_deadline_day == 0:
@@ -161,7 +152,7 @@ def calculate_driver_score(driver: Dict, order: Dict, driver_workload_hours: Dic
 def suggest_best_driver(drivers: List[Dict], order: Dict, driver_workload_hours: Dict[int, float], all_orders: List[Dict]) -> Optional[Dict]:
     if not drivers:
         return None
-    # Bereken tijd nodig voor deze order
+
     order_time = calculate_order_time_hours(order)
     order_deadline_date = None
     if order.get('deadline'):
@@ -169,15 +160,14 @@ def suggest_best_driver(drivers: List[Dict], order: Dict, driver_workload_hours:
             order_deadline_date = datetime.strptime(order['deadline'], '%Y-%m-%d').date()
         except (ValueError, TypeError):
             pass
-    # Bereken score voor elke chauffeur
+
     driver_scores = []
     for driver in drivers:
         score = calculate_driver_score(driver, order, driver_workload_hours, all_orders)
-        # Check of de taak past op de deadline dag
+
         if order_deadline_date:
             hours_on_deadline = calculate_driver_workload_hours(driver['id'], all_orders, order_deadline_date)
             if hours_on_deadline + order_time > WORKDAY_HOURS:
-                # Taak past niet, skip deze chauffeur
                 continue
         
         driver_scores.append({
@@ -186,14 +176,14 @@ def suggest_best_driver(drivers: List[Dict], order: Dict, driver_workload_hours:
         })
     
     if not driver_scores:
-        return None  # Geen geschikte chauffeurs gevonden
-    # Sorteer op score (hoogste eerst)
+        return None
+
     driver_scores.sort(key=lambda x: x['score'], reverse=True)
-    # Return de beste chauffeur
+
     best = driver_scores[0]
     driver_id = best['driver']['id']
     total_hours = driver_workload_hours.get(driver_id, 0.0)
-    # Bereken beschikbare tijd op deadline dag
+
     available_hours = WORKDAY_HOURS
     if order_deadline_date:
         hours_on_deadline = calculate_driver_workload_hours(driver_id, all_orders, order_deadline_date)
@@ -203,12 +193,12 @@ def suggest_best_driver(drivers: List[Dict], order: Dict, driver_workload_hours:
         'driver_id': best['driver']['id'],
         'driver_name': best['driver'].get('name', 'Onbekend'),
         'score': best['score'],
+        'available_hours': available_hours,
         'reason': _get_suggestion_reason(best['score'], total_hours, available_hours, order_time)
     }
 
 
 def _get_suggestion_reason(score: float, total_hours: float, available_hours: float, order_time: float) -> str:
-    """Genereer een menselijke uitleg waarom deze chauffeur wordt voorgesteld."""
     if total_hours == 0:
         return f"Beschikbaar ({available_hours:.1f}u beschikbaar, taak: {order_time:.1f}u)"
     elif available_hours >= order_time + 2:
@@ -220,7 +210,6 @@ def _get_suggestion_reason(score: float, total_hours: float, available_hours: fl
 
 
 def sort_orders_by_priority(orders: List[Dict]) -> List[Dict]:
-    # Bereken priority score voor elke order
     orders_with_scores = []
     for order in orders:
         score = calculate_priority_score(order)
@@ -229,10 +218,8 @@ def sort_orders_by_priority(orders: List[Dict]) -> List[Dict]:
             'priority_score': score
         })
     
-    # Sorteer op score (hoogste eerst)
     orders_with_scores.sort(key=lambda x: x['priority_score'], reverse=True)
     
-    # Voeg score toe aan order data en return
     result = []
     for item in orders_with_scores:
         order = item['order'].copy()
@@ -240,4 +227,78 @@ def sort_orders_by_priority(orders: List[Dict]) -> List[Dict]:
         result.append(order)
     
     return result
+
+
+
+"""# AgriFlow - Web Application
+
+## Smart Driver Assignment & Priority Scoring Algorithm
+
+### Overzicht
+
+Dit algoritme helpt bedrijven in AgriFlow om:
+1. **Bestellingen te prioriteren** op basis van urgentie (deadline, gewicht, leeftijd)
+2. **Automatisch de beste chauffeur voor te stellen** voor elke bestelling op basis van beschikbaarheid
+
+### Technische Details
+
+#### Priority Scoring
+Het algoritme berekent een prioriteitsscore (0-100) voor elke bestelling op basis van:
+- **Deadline urgentie** (0-50 punten): Hoe dichter bij de deadline, hoe hoger de score
+- **Gewicht** (0-30 punten): Zwaardere bestellingen krijgen hogere prioriteit
+- **Leeftijd** (0-20 punten): Oudere bestellingen krijgen hogere prioriteit
+
+#### Smart Driver Suggestion
+Het algoritme berekent een geschiktheidsscore (0-100) voor elke chauffeur op basis van:
+- **Beschikbare tijd op deadline dag** (0-50 punten): Controleert of de taak past binnen de 10-urige werkdag
+- **Totale workload** (0-30 punten): Chauffeurs met minder uren geboekt krijgen hogere scores
+- **Deadline compatibiliteit** (0-20 punten): Bonus als chauffeur geen/weinig taken heeft op deadline dag
+
+#### Tijdsberekening
+Het algoritme berekent de werkelijke tijd per bestelling:
+- **Werk tijd**: Afhankelijk van taaktype en gewicht (per 1000 kg):
+  - Pletten: 1 uur
+  - Malen: 2 uur
+  - Zuigen: 0.5 uur
+  - Blazen: 0.5 uur
+  - Mengen: 1 uur
+- **Reistijd**: 1 uur per bestelling (naar nieuwe klant)
+- **Werkdag**: Maximaal 10 uur per dag
+
+### Implementatie
+
+#### Bestanden
+- `app/algorithms.py`: Bevat alle algoritme logica
+- `app/routes.py`: Integreert het algoritme in het bedrijf dashboard
+- `app/templates/company_dashboard.html`: Toont prioriteitsscores en chauffeur suggesties
+
+#### Gebruikte Libraries
+- **Geen externe ML/AI libraries**: Het algoritme gebruikt alleen standaard Python (datetime, typing)
+- **Eenvoudige scoring methoden**: Geschikt voor handelsingenieurs zonder diepe programmeerkennis
+
+#### Core Logic
+Het algoritme is volledig zelf geïmplementeerd:
+- Feature engineering: Deadline parsing, gewicht normalisatie, workload berekening
+- Scoring: Eenvoudige gewogen sommen met thresholds
+- Ranking: Sorteren op scores
+
+### Gebruik
+
+1. **Automatische prioritering**: Bestellingen worden automatisch gesorteerd op urgentie
+2. **Chauffeur suggesties**: Voor bestellingen zonder chauffeur wordt automatisch de beste chauffeur voorgesteld op basis van:
+   - Beschikbare tijd op deadline dag
+   - Totale workload
+   - Of de taak past binnen de werkdag (10 uur)
+3. **Visual feedback**: 
+   - Prioriteitsscores worden getoond
+   - Voorgestelde chauffeurs worden gemarkeerd in de dropdown
+   - Geschatte tijd per bestelling wordt getoond
+   - Beschikbare tijd per chauffeur wordt getoond in suggesties
+
+### Toekomstige Uitbreidingen
+
+Mogelijke verbeteringen (niet geïmplementeerd):
+- Locatie-gebaseerde matching (afstand tussen chauffeur en bestemming)
+- Historische performance data (welke chauffeur is het beste voor welk type taak)
+- Machine learning voor betere voorspellingen (als meer data beschikbaar is)"""
 
