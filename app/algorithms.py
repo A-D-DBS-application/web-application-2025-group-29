@@ -2,11 +2,11 @@ from datetime import datetime, timedelta, date
 from typing import List, Dict, Optional
 
 TASK_TIMES_PER_1000KG = {
-    'pletten': 1.0,
-    'malen': 2.0,
-    'zuigen': 0.5,
-    'blazen': 0.5,
-    'mengen': 1.0
+    'pletten': 1/6,
+    'malen': 1/8,
+    'zuigen': 1/10,
+    'blazen': 1/20,
+    'mengen': 1/10
 }
 
 WORKDAY_HOURS = 12.0
