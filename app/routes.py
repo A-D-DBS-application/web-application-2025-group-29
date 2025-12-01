@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, g
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from .config import supabase
 from .algorithms import suggest_best_driver, sort_orders_by_priority, calculate_driver_workload_hours, calculate_order_time_hours
 bp = Blueprint('routes', __name__)
@@ -918,6 +918,263 @@ def company_dashboard():
     except Exception as e:
         flash(f"Fout bij het ophalen van bestellingen: {str(e)}", "error")
         return render_template('company_dashboard.html', active_orders=[], completed_orders=[], drivers=[], user_email=session.get('email', ''))
+
+
+@bp.route('/company/statistics')
+@login_required
+def company_statistics():
+    """Toon statistieken voor het bedrijf: tonnen per taaktype, per chauffeur en per jaar"""
+    user_type = session.get('user_type', 'customer')
+    if user_type != 'company':
+        flash("Je hebt geen toegang tot deze pagina.", "error")
+        return redirect(url_for('routes.profile'))
+    
+    try:
+        sb = get_authenticated_supabase()
+        company_email = session.get('email')
+        company_id = None
+        company_name = None
+        
+        company_result = sb.table('Companies').select('id, name').eq('emailaddress', company_email).limit(1).execute()
+        if company_result.data and len(company_result.data) > 0:
+            company_id = company_result.data[0]['id']
+            company_name = company_result.data[0].get('name', 'Bedrijf')
+        
+        if not company_id:
+            flash("Bedrijf niet gevonden. Neem contact op met de beheerder.", "error")
+            return redirect(url_for('routes.home'))
+        
+        # Haal alle chauffeurs van dit bedrijf op
+        drivers_result = sb.table('Drivers').select('id, name').eq('company_id', company_id).execute()
+        all_drivers = drivers_result.data if drivers_result.data else []
+        
+        # Haal alle voltooide orders op voor dit bedrijf
+        orders_result = sb.table('Orders').select('*, Drivers(*)').eq('company_id', company_id).eq('status', 'completed').execute()
+        all_orders = orders_result.data if orders_result.data else []
+        
+        # Haal geselecteerde maand op (format: YYYY-MM)
+        selected_month = request.args.get('month')
+        if not selected_month:
+            # Standaard: huidige maand
+            now = datetime.now(timezone.utc)
+            selected_month = f"{now.year}-{now.month:02d}"
+        
+        try:
+            selected_year, selected_month_num = map(int, selected_month.split('-'))
+            if not (1 <= selected_month_num <= 12):
+                raise ValueError("Ongeldige maand")
+        except (ValueError, AttributeError):
+            # Fallback naar huidige maand bij ongeldige input
+            now = datetime.now(timezone.utc)
+            selected_year = now.year
+            selected_month_num = now.month
+            selected_month = f"{selected_year}-{selected_month_num:02d}"
+        
+        # Datum berekeningen - gebruik UTC voor consistentie
+        now = datetime.now(timezone.utc)
+        current_year_start = datetime(now.year, 1, 1, tzinfo=timezone.utc)
+        
+        # Bereken start en einde van geselecteerde maand
+        selected_month_start = datetime(selected_year, selected_month_num, 1, tzinfo=timezone.utc)
+        # Einde van maand: eerste dag van volgende maand
+        if selected_month_num == 12:
+            selected_month_end = datetime(selected_year + 1, 1, 1, tzinfo=timezone.utc)
+        else:
+            selected_month_end = datetime(selected_year, selected_month_num + 1, 1, tzinfo=timezone.utc)
+        
+        # Helper functie om datum te parsen en naar UTC te converteren
+        def parse_date(date_str):
+            if not date_str:
+                return None
+            try:
+                # Probeer verschillende formaten
+                if 'T' in date_str:
+                    dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                    # Zorg dat het timezone-aware is
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                    else:
+                        # Converteer naar UTC
+                        dt = dt.astimezone(timezone.utc)
+                    return dt
+                # Voor datum strings zonder tijd, gebruik UTC
+                dt = datetime.strptime(date_str, '%Y-%m-%d')
+                return dt.replace(tzinfo=timezone.utc)
+            except:
+                return None
+        
+        # Filter orders op datum
+        orders_selected_month = []
+        orders_this_year = []
+        
+        for order in all_orders:
+            # Gebruik created_at of deadline voor datum filtering
+            order_date_str = order.get('created_at') or order.get('deadline')
+            order_date = parse_date(order_date_str)
+            
+            if order_date:
+                # Check of order in geselecteerde maand valt
+                if selected_month_start <= order_date < selected_month_end:
+                    orders_selected_month.append(order)
+                # Check of order in dit jaar valt
+                if order_date >= current_year_start:
+                    orders_this_year.append(order)
+        
+        # Helper functie om gewicht in tonnen te converteren (van kg)
+        def kg_to_tons(weight_kg):
+            if weight_kg is None:
+                return 0.0
+            try:
+                return float(weight_kg) / 1000.0
+            except (ValueError, TypeError):
+                return 0.0
+        
+        # Statistieken per taaktype voor geselecteerde maand
+        task_types = ['pletten', 'malen', 'zuigen', 'blazen', 'mengen']
+        stats_by_task_selected_month = {}
+        
+        for task_type in task_types:
+            stats_by_task_selected_month[task_type] = 0.0
+        
+        for order in orders_selected_month:
+            task_type = order.get('task_type')
+            weight = order.get('Weight') or order.get('weight')
+            if task_type and task_type in task_types:
+                stats_by_task_selected_month[task_type] += kg_to_tons(weight)
+        
+        # Initialiseer statistieken voor alle chauffeurs
+        driver_stats = {}
+        for driver in all_drivers:
+            driver_id = driver['id']
+            driver_name = driver.get('name', 'Onbekend')
+            driver_stats[driver_id] = {
+                'name': driver_name,
+                'total_tons': 0.0,
+                'selected_month_tons': 0.0,
+                'year_tons': 0.0
+            }
+        
+        # Bereken statistieken per chauffeur op basis van orders
+        for order in all_orders:
+            driver_id = order.get('driver_id')
+            if driver_id and driver_id in driver_stats:
+                weight = order.get('Weight') or order.get('weight')
+                tons = kg_to_tons(weight)
+                driver_stats[driver_id]['total_tons'] += tons
+                
+                # Check welke periode
+                order_date_str = order.get('created_at') or order.get('deadline')
+                order_date = parse_date(order_date_str)
+                if order_date:
+                    if selected_month_start <= order_date < selected_month_end:
+                        driver_stats[driver_id]['selected_month_tons'] += tons
+                    if order_date >= current_year_start:
+                        driver_stats[driver_id]['year_tons'] += tons
+        
+        # Sorteer chauffeurs op totaal tonnen
+        driver_stats_list = sorted(driver_stats.values(), key=lambda x: x['total_tons'], reverse=True)
+        
+        # Statistieken voor het jaar
+        year_stats_by_task = {}
+        total_year_tons = 0.0
+        
+        for task_type in task_types:
+            year_stats_by_task[task_type] = 0.0
+        
+        for order in orders_this_year:
+            task_type = order.get('task_type')
+            weight = order.get('Weight') or order.get('weight')
+            tons = kg_to_tons(weight)
+            total_year_tons += tons
+            if task_type and task_type in task_types:
+                year_stats_by_task[task_type] += tons
+        
+        # Taaktype labels in Nederlands
+        task_type_labels = {
+            'pletten': 'Pletten',
+            'malen': 'Malen',
+            'zuigen': 'Zuigen',
+            'blazen': 'Blazen',
+            'mengen': 'Mengen'
+        }
+        
+        # Bereken totalen
+        total_selected_month = sum(stats_by_task_selected_month.values())
+        total_driver_tons = sum(d['total_tons'] for d in driver_stats_list)
+        total_driver_selected_month = sum(d['selected_month_tons'] for d in driver_stats_list)
+        total_driver_year = sum(d['year_tons'] for d in driver_stats_list)
+        
+        # Genereer lijst van beschikbare maanden (vanaf eerste order tot nu)
+        available_months = []
+        if all_orders:
+            # Vind eerste en laatste order datum
+            first_date = None
+            last_date = None
+            for order in all_orders:
+                order_date_str = order.get('created_at') or order.get('deadline')
+                order_date = parse_date(order_date_str)
+                if order_date:
+                    if first_date is None or order_date < first_date:
+                        first_date = order_date
+                    if last_date is None or order_date > last_date:
+                        last_date = order_date
+            
+            if first_date:
+                # Nederlandse maandnamen
+                month_names = {
+                    1: 'januari', 2: 'februari', 3: 'maart', 4: 'april',
+                    5: 'mei', 6: 'juni', 7: 'juli', 8: 'augustus',
+                    9: 'september', 10: 'oktober', 11: 'november', 12: 'december'
+                }
+                
+                # Genereer maanden van eerste order tot nu
+                current = datetime(first_date.year, first_date.month, 1, tzinfo=timezone.utc)
+                end = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
+                while current <= end:
+                    month_str = f"{current.year}-{current.month:02d}"
+                    month_label = f"{month_names[current.month].capitalize()} {current.year}"  # Bijv. "April 2025"
+                    available_months.append({
+                        'value': month_str,
+                        'label': month_label
+                    })
+                    # Volgende maand
+                    if current.month == 12:
+                        current = datetime(current.year + 1, 1, 1, tzinfo=timezone.utc)
+                    else:
+                        current = datetime(current.year, current.month + 1, 1, tzinfo=timezone.utc)
+                # Sorteer omgekeerd (nieuwste eerst)
+                available_months.reverse()
+        
+        # Nederlandse maandnamen
+        month_names = {
+            1: 'januari', 2: 'februari', 3: 'maart', 4: 'april',
+            5: 'mei', 6: 'juni', 7: 'juli', 8: 'augustus',
+            9: 'september', 10: 'oktober', 11: 'november', 12: 'december'
+        }
+        # Maand label voor geselecteerde maand
+        selected_month_label = f"{month_names[selected_month_num].capitalize()} {selected_year}"
+        
+        # Huidig jaar voor jaar statistieken
+        current_year = now.year
+        
+        return render_template('company_statistics.html', 
+                             company_name=company_name,
+                             stats_by_task_selected_month=stats_by_task_selected_month,
+                             stats_by_task_year=year_stats_by_task,
+                             driver_stats=driver_stats_list,
+                             total_year_tons=total_year_tons,
+                             total_selected_month=total_selected_month,
+                             total_driver_tons=total_driver_tons,
+                             total_driver_selected_month=total_driver_selected_month,
+                             total_driver_year=total_driver_year,
+                             task_type_labels=task_type_labels,
+                             selected_month=selected_month,
+                             selected_month_label=selected_month_label,
+                             selected_year=current_year,
+                             available_months=available_months)
+    except Exception as e:
+        flash(f"Fout bij het ophalen van statistieken: {str(e)}", "error")
+        return redirect(url_for('routes.home'))
 
 
 @bp.route('/company/assign-driver/<int:order_id>', methods=['POST'])
