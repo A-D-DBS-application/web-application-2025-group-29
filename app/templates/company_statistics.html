@@ -24,19 +24,25 @@
       <div class="card-body">
         <!-- Per taaktype voor de maand -->
         <h6 class="mb-3">Per Taaktype</h6>
+        {% if stats_by_task_selected_month and stats_by_task_selected_month|length > 0 %}
         <div class="row g-3 mb-4">
-          {% for task_type, label in task_type_labels.items() %}
+          {% for task_type_id, stats in stats_by_task_selected_month.items() %}
           <div class="col-md-4 col-lg-2">
             <div class="card border-success h-100">
               <div class="card-body text-center">
-                <h3 class="card-title text-success">{{ '%.2f'|format(stats_by_task_selected_month[task_type]) }}</h3>
-                <p class="card-text text-muted mb-0">{{ label }}</p>
+                <h3 class="card-title text-success">{{ '%.2f'|format(stats['tons']) }}</h3>
+                <p class="card-text text-muted mb-0">{{ stats['name'] }}</p>
                 <small class="text-muted">ton</small>
               </div>
             </div>
           </div>
           {% endfor %}
         </div>
+        {% else %}
+        <div class="alert alert-success mb-4" role="alert">
+          Geen statistieken beschikbaar voor deze maand.
+        </div>
+        {% endif %}
         <div class="mb-4">
           <strong>Totaal {{ selected_month_label }}:</strong> 
           <span class="text-success">{{ '%.2f'|format(total_selected_month) }} ton</span>
@@ -85,19 +91,25 @@
       <div class="card-body">
         <!-- Per taaktype voor het jaar -->
         <h6 class="mb-3">Per Taaktype</h6>
+        {% if stats_by_task_year and stats_by_task_year|length > 0 %}
         <div class="row g-3 mb-4">
-          {% for task_type, label in task_type_labels.items() %}
+          {% for task_type_id, stats in stats_by_task_year.items() %}
           <div class="col-md-4 col-lg-2">
             <div class="card border-success h-100">
               <div class="card-body text-center">
-                <h3 class="card-title text-success">{{ '%.2f'|format(stats_by_task_year[task_type]) }}</h3>
-                <p class="card-text text-muted mb-0">{{ label }}</p>
+                <h3 class="card-title text-success">{{ '%.2f'|format(stats['tons']) }}</h3>
+                <p class="card-text text-muted mb-0">{{ stats['name'] }}</p>
                 <small class="text-muted">ton</small>
               </div>
             </div>
           </div>
           {% endfor %}
         </div>
+        {% else %}
+        <div class="alert alert-success mb-4" role="alert">
+          Geen statistieken beschikbaar voor dit jaar.
+        </div>
+        {% endif %}
         <div class="mb-4">
           <strong>Totaal {{ selected_year }}:</strong> 
           <span class="text-success">{{ '%.2f'|format(total_year_tons) }} ton</span>

@@ -18,85 +18,13 @@
           <p class="col-md-8 fs-6 opacity-75">Beheer je bestellingen en klanten op één plek</p>
           <div class="mt-4">
             <a class="btn btn-success btn-lg me-2" href="{{ url_for('routes.company_dashboard') }}">Bekijk Bestellingen</a>
-            <a class="btn btn-outline-info btn-lg me-2" href="{{ url_for('routes.company_statistics') }}">Statistieken</a>
-            <a class="btn btn-outline-primary btn-lg" href="{{ url_for('routes.profile') }}">Profiel Instellingen</a>
+            <a class="btn btn-outline-success btn-lg me-2" href="{{ url_for('routes.company_statistics') }}">Statistieken</a>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="row g-4 mb-4">
-    <!-- Statistics Cards -->
-    <div class="col-md-4">
-      <div class="card shadow-sm border-success h-100">
-        <div class="card-body text-center">
-          <h3 class="card-title">{{ stats.total_orders }}</h3>
-          <p class="card-text text-muted">Totaal Bestellingen</p>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="card shadow-sm border-success h-100">
-        <div class="card-body text-center">
-          <h3 class="card-title">{{ stats.pending_orders }}</h3>
-          <p class="card-text text-muted">Openstaande Bestellingen</p>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="card shadow-sm border-success h-100">
-        <div class="card-body text-center">
-          <h3 class="card-title">{{ stats.completed_orders }}</h3>
-          <p class="card-text text-muted">Afgehandelde Bestellingen</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Recent Orders -->
-  {% if stats.recent_orders and stats.recent_orders|length > 0 %}
-  <div class="row mb-4">
-    <div class="col-12">
-      <div class="card shadow-sm border-success">
-        <div class="card-header bg-success text-white">
-          <h5 class="mb-0">Recente Bestellingen</h5>
-        </div>
-        <div class="card-body">
-          <div class="table-responsive">
-            <table class="table table-hover mb-0">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Datum</th>
-                  <th>Deadline</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for order in stats.recent_orders %}
-                <tr>
-                  <td>Bestelling #{{ order.id }}</td>
-                  <td>{{ order.created_at[:10] if order.created_at else '-' }}</td>
-                  <td>
-                    {% if order.deadline %}
-                      <span class="text-dark">{{ order.deadline }}</span>
-                    {% else %}
-                      <span class="text-muted">Geen deadline</span>
-                    {% endif %}
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-          <div class="mt-3 text-center">
-            <a href="{{ url_for('routes.company_dashboard') }}" class="btn btn-success">Alle Bestellingen Bekijken →</a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  {% endif %}
 
 {% elif user_type == 'driver' %}
   <!-- Driver Home Page -->
@@ -106,7 +34,6 @@
         <div class="container-fluid py-5">
           <h1 class="display-5 fw-bold">Chauffeur Dashboard</h1>
           <p class="col-md-8 fs-4">Mijn Toegewezen Taken</p>
-          <p class="col-md-8 fs-6 opacity-75">Taken die door het bedrijf aan jou zijn toegewezen</p>
           <div class="mt-4">
             <a class="btn btn-success btn-lg" href="{{ url_for('routes.driver_dashboard') }}">Bekijk Dashboard</a>
           </div>
@@ -114,133 +41,6 @@
       </div>
     </div>
   </div>
-
-  {% if active_routes %}
-  <div class="row g-4 mb-4">
-    <div class="col-12">
-      <h3 class="mb-3">Mijn Toegewezen Taken</h3>
-    </div>
-    {% for route in active_routes %}
-    <div class="col-md-6 col-lg-4">
-      <div class="card shadow-sm h-100 border-success">
-        <div class="card-header bg-success text-white">
-          <h6 class="mb-0">Taak #{{ route.id }}</h6>
-        </div>
-        <div class="card-body">
-          <p class="mb-2">
-            <strong>Deadline:</strong><br>
-            {% if route.deadline %}
-              <span class="badge bg-info">{{ route.deadline }}</span>
-            {% else %}
-              <span class="text-muted">Geen deadline</span>
-            {% endif %}
-          </p>
-          <p class="mb-2">
-            <strong>Taak:</strong> <span class="badge bg-secondary">{{ route.task_type|default('-') }}</span>
-          </p>
-          <p class="mb-2">
-            <strong>Product:</strong> {{ route.product_type|default('-') }}
-          </p>
-          {% if route.address %}
-          <hr>
-          <p class="mb-1"><strong>Adres:</strong></p>
-          <p class="mb-2">
-            {{ route.address.street_name }} {{ route.address.house_number }}<br>
-            {{ route.address.city }}
-          </p>
-          {% if route.address.phone_number %}
-          <p class="mb-2">
-            <a href="tel:{{ route.address.phone_number }}" class="btn btn-sm btn-outline-primary">
-              {{ route.address.phone_number }}
-            </a>
-          </p>
-          {% endif %}
-          {% endif %}
-          {% if route.address %}
-          <div class="d-grid mt-3">
-            {% set full_address = route.address.street_name ~ ' ' ~ route.address.house_number ~ ', ' ~ route.address.city %}
-            <a 
-              href="https://www.google.com/maps/dir/?api=1&destination={{ full_address|replace(' ', '+') }}" 
-              target="_blank" 
-              class="btn btn-success mb-2"
-            >
-              Navigeer naar Google Maps
-            </a>
-            {% if route.status != 'completed' %}
-            <form method="POST" action="{{ url_for('routes.driver_complete_order', order_id=route.id) }}">
-              <button type="submit" class="btn btn-dark w-100">
-                Taak voltooien
-              </button>
-            </form>
-            {% else %}
-            <span class="badge bg-light text-dark border w-100 p-2 text-center">Uitgevoerd</span>
-            {% endif %}
-          </div>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}
-
-  {% if not active_routes %}
-  <div class="alert alert-info mb-4" role="alert">
-    Er zijn momenteel geen actieve taken aan jou toegewezen. Het bedrijf kan taken aan jou toewijzen via het bedrijf dashboard.
-  </div>
-  {% endif %}
-  
-  {% if completed_routes %}
-  <div class="row g-4 mb-4">
-    <div class="col-12">
-      <h3 class="mb-3">Voltooide Taken</h3>
-    </div>
-    {% for route in completed_routes %}
-    <div class="col-md-6 col-lg-4">
-      <div class="card shadow-sm h-100 border-success">
-        <div class="card-header border-success">
-          <h6 class="mb-0">Taak #{{ route.id }}</h6>
-        </div>
-        <div class="card-body">
-          <p class="mb-2">
-            <strong>Deadline:</strong><br>
-            {% if route.deadline %}
-              <span class="badge bg-info">{{ route.deadline }}</span>
-            {% else %}
-              <span class="text-muted">Geen deadline</span>
-            {% endif %}
-          </p>
-          <p class="mb-2">
-            <strong>Taak:</strong> <span class="badge bg-secondary">{{ route.task_type|default('-') }}</span>
-          </p>
-          <p class="mb-2">
-            <strong>Product:</strong> {{ route.product_type|default('-') }}
-          </p>
-          {% if route.address %}
-          <hr>
-          <p class="mb-1"><strong>Adres:</strong></p>
-          <p class="mb-2">
-            {{ route.address.street_name }} {{ route.address.house_number }}<br>
-            {{ route.address.city }}
-          </p>
-          {% if route.address.phone_number %}
-          <p class="mb-2">
-            <a href="tel:{{ route.address.phone_number }}" class="btn btn-sm btn-outline-primary">
-              {{ route.address.phone_number }}
-            </a>
-          </p>
-          {% endif %}
-          {% endif %}
-          <div class="d-grid mt-3">
-            <span class="badge bg-light text-dark border w-100 p-2 text-center">Uitgevoerd</span>
-          </div>
-        </div>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}
-
 
 {% else %}
   <!-- Customer/Public Home Page -->
@@ -251,13 +51,13 @@
       {% if g.current_user_id and user_type == 'customer' %}
         <div class="mt-4">
           <a class="btn btn-success btn-lg me-2" href="{{ url_for('routes.order') }}">Plaats een bestelling</a>
-          <a class="btn btn-outline-primary btn-lg" href="{{ url_for('routes.customer_orders') }}">Mijn Bestellingen</a>
+          <a class="btn btn-outline-success btn-lg" href="{{ url_for('routes.customer_orders') }}">Mijn Bestellingen</a>
         </div>
       {% elif g.current_user_id and user_type != 'customer' %}
         <p class="col-md-8 fs-6 text-muted mt-3">Je bent ingelogd als {{ user_type }}. Gebruik het menu om naar je dashboard te gaan.</p>
       {% else %}
         <a class="btn btn-success btn-lg me-2" href="{{ url_for('routes.signup') }}">Begin hier (account aanmaken)</a>
-        <a class="btn btn-outline-primary btn-lg" href="{{ url_for('routes.login') }}">Ik heb al een account</a>
+        <a class="btn btn-outline-success btn-lg" href="{{ url_for('routes.login') }}">Ik heb al een account</a>
       {% endif %}
     </div>
   </div>

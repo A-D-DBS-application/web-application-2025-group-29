@@ -4,7 +4,6 @@
   <div class="col-12">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="h4 mb-0">Chauffeur Dashboard</h2>
-      <span class="text-muted">{{ user_email }}</span>
     </div>
     
     <div class="card shadow-sm mb-4 border-success">
@@ -32,11 +31,21 @@
                     {% endif %}
                   </p>
                   <p class="mb-2">
-                    <strong>Taak:</strong> <span class="badge bg-secondary">{{ order.task_type|default('-') }}</span>
+                    <strong>Taak:</strong> <span class="badge border border-dark text-dark">{{ order.task_type|default('-') }}</span>
                   </p>
                   <p class="mb-2">
                     <strong>Product:</strong> {{ order.product_type|default('-') }}
                   </p>
+                  {% if order.weight %}
+                  <p class="mb-2">
+                    <strong>Gewicht:</strong> {{ '%.0f'|format(order.weight) }} kg
+                  </p>
+                  {% endif %}
+                  {% if order.work_time_hours is defined %}
+                  <p class="mb-2">
+                    <strong>Tijdsduur:</strong> {{ '%.2f'|format(order.work_time_hours) }} uur
+                  </p>
+                  {% endif %}
                   {% if order.address %}
                   <hr>
                   <p class="mb-1"><strong>Adres:</strong></p>
@@ -46,9 +55,7 @@
                   </p>
                   {% if order.address.phone_number %}
                   <p class="mb-2">
-                    <a href="tel:{{ order.address.phone_number }}" class="btn btn-sm btn-outline-primary">
-                      {{ order.address.phone_number }}
-                    </a>
+                    <strong>Tel:</strong> {{ order.address.phone_number }}
                   </p>
                   {% endif %}
                   {% endif %}
@@ -86,7 +93,7 @@
       </div>
     </div>
     
-    <div class="card shadow-sm">
+    <div class="card shadow-sm mb-4">
       <div class="card-header border-success">
         <h5 class="mb-0">Voltooide Ritten</h5>
       </div>
@@ -111,11 +118,21 @@
                     {% endif %}
                   </p>
                   <p class="mb-2">
-                    <strong>Taak:</strong> <span class="badge bg-secondary">{{ order.task_type|default('-') }}</span>
+                    <strong>Taak:</strong> <span class="badge border border-dark text-dark">{{ order.task_type|default('-') }}</span>
                   </p>
                   <p class="mb-2">
                     <strong>Product:</strong> {{ order.product_type|default('-') }}
                   </p>
+                  {% if order.weight %}
+                  <p class="mb-2">
+                    <strong>Gewicht:</strong> {{ '%.0f'|format(order.weight) }} kg
+                  </p>
+                  {% endif %}
+                  {% if order.work_time_hours is defined %}
+                  <p class="mb-2">
+                    <strong>Tijdsduur:</strong> {{ '%.2f'|format(order.work_time_hours) }} uur
+                  </p>
+                  {% endif %}
                   {% if order.address %}
                   <hr>
                   <p class="mb-1"><strong>Adres:</strong></p>
@@ -125,9 +142,7 @@
                   </p>
                   {% if order.address.phone_number %}
                   <p class="mb-2">
-                    <a href="tel:{{ order.address.phone_number }}" class="btn btn-sm btn-outline-primary">
-                      {{ order.address.phone_number }}
-                    </a>
+                    <strong>Tel:</strong> {{ order.address.phone_number }}
                   </p>
                   {% endif %}
                   {% endif %}

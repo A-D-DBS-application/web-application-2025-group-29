@@ -2,33 +2,90 @@
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-12 col-lg-8 col-xl-7">
+    <!-- Keuze tussen nieuwe bestelling of kopiëren -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <h5 class="mb-3">Wat wil je doen?</h5>
+        <div class="btn-group w-100" role="group">
+          <input type="radio" class="btn-check" name="order-type" id="new-order" checked>
+          <label class="btn btn-outline-success" for="new-order">Nieuwe bestelling</label>
+          
+          {% if previous_orders and previous_orders|length > 0 %}
+          <input type="radio" class="btn-check" name="order-type" id="copy-order">
+          <label class="btn btn-outline-success" for="copy-order">Eerdere bestelling kopiëren</label>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    <!-- Sectie voor eerdere bestellingen (verborgen standaard) -->
+    {% if previous_orders and previous_orders|length > 0 %}
+    <div class="card shadow-sm mb-4 border-success" id="previous-orders-section" style="display: none;">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0">Kopieer een eerdere bestelling</h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-3">Klik op "Kopieer" om de gegevens van een eerdere bestelling over te nemen. Je hoeft alleen nog de deadline in te vullen.</p>
+        <div class="table-responsive">
+          <table class="table table-hover table-sm">
+            <thead>
+              <tr>
+                <th>Datum</th>
+                <th>Taaktype</th>
+                <th>Producttype</th>
+                <th>Gewicht</th>
+                <th>Bedrijf</th>
+                <th>Adres</th>
+                <th>Actie</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for order in previous_orders %}
+              <tr>
+                <td>{{ order.created_at[:10] if order.created_at else '-' }}</td>
+                <td><span class="badge border border-dark text-dark">{{ order.task_type|default('-') }}</span></td>
+                <td>{{ order.product_type|default('-') }}</td>
+                <td>{{ '%.0f'|format(order.weight) if order.weight else '-' }} kg</td>
+                <td>{{ order.company_name|default('-') }}</td>
+                <td>
+                  {% if order.address %}
+                    {{ order.address.street_name }} {{ order.address.house_number }}, {{ order.address.city }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td>
+                  <button 
+                    type="button" 
+                    class="btn btn-sm btn-outline-success copy-order-btn"
+                    data-task-type-id="{{ order.task_type_id }}"
+                    data-task-type="{{ order.task_type }}"
+                    data-product-type="{{ order.product_type }}"
+                    data-weight="{{ order.weight }}"
+                    data-company-id="{{ order.company_id }}"
+                    data-company-name="{{ order.company_name }}"
+                    data-address-id="{{ order.address_id }}"
+                  >
+                    Kopieer
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    
+    <!-- Formulier voor nieuwe bestelling -->
     <div class="card shadow-sm">
       <div class="card-body p-4">
         <h2 class="h4 mb-3">Nieuwe bestelling</h2>
-        <form method="POST" class="row g-3">
+        <form method="POST" class="row g-3" id="order-form">
           <div class="col-md-6">
             <label class="form-label">Deadline</label>
             <input type="date" name="deadline" class="form-control" required>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Taaktype</label>
-            <select name="task_type" class="form-select" required>
-              <option value="" selected disabled>Kies een taak</option>
-              <option value="pletten">Pletten</option>
-              <option value="malen">Malen</option>
-              <option value="zuigen">Zuigen</option>
-              <option value="blazen">Blazen</option>
-              <option value="mengen">Mengen</option>
-            </select>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Producttype</label>
-            <input type="text" name="product_type" class="form-control" placeholder="Bijv. Maïs" required>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Gewicht (kg)</label>
-            <input type="number" name="weight" class="form-control" placeholder="Bijv. 1000" step="0.01" min="0" required>
-            <small class="text-muted">Voer het gewicht in kilogrammen in</small>
           </div>
           <div class="col-md-6">
             <label class="form-label">Bedrijf</label>
@@ -60,17 +117,38 @@
               </div>
               <input type="hidden" name="company_id" id="selected-company-id" required>
             </div>
-            <small class="text-muted" id="selected-company-display" style="display: none;"></small>
+            <small class="text-muted" id="selected-company-display" style="display: none;">
+              Geselecteerd: <span id="selected-company-name"></span>
+            </small>
             {% if not companies %}
             <small class="text-danger">Geen bedrijven beschikbaar</small>
             {% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Taaktype</label>
+            <select name="task_type" id="task_type" class="form-select" required disabled>
+              <option value="" selected disabled>Kies eerst een bedrijf</option>
+            </select>
+            <small class="text-muted" id="task-type-help">Selecteer eerst een bedrijf om beschikbare taaktypes te zien</small>
+            <div id="no-task-types-warning" class="alert alert-warning mt-2" style="display: none;">
+              <strong>Let op!</strong> Dit bedrijf heeft nog geen taaktypes geconfigureerd. Je kunt momenteel geen bestelling plaatsen bij dit bedrijf. Neem contact op met het bedrijf of kies een ander bedrijf.
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Producttype</label>
+            <input type="text" name="product_type" id="product_type" class="form-control" placeholder="Bijv. Maïs" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Gewicht (kg)</label>
+            <input type="number" name="weight" id="weight" class="form-control" placeholder="Bijv. 1000" step="0.01" min="0" required>
+            <small class="text-muted">Voer het gewicht in kilogrammen in</small>
           </div>
           <div class="col-12 mt-3">
             <h5 class="mb-2">Adres</h5>
             {% if addresses and addresses|length > 0 %}
             <div class="mb-3">
               <label class="form-label">Selecteer een adres</label>
-              <select name="address_id" class="form-select" required>
+              <select name="address_id" id="address_id" class="form-select" required>
                 <option value="" selected disabled>Kies een adres</option>
                 {% for address in addresses %}
                 <option value="{{ address.id }}">
@@ -153,6 +231,84 @@ function selectCompany(event, companyId, companyName) {
   // Remove required attribute from search input and add to hidden input
   document.getElementById('company-search').removeAttribute('required');
   document.getElementById('selected-company-id').setAttribute('required', 'required');
+  
+  // Load task types for this company
+  loadTaskTypes(companyId);
+}
+
+function loadTaskTypes(companyId, callback) {
+  const taskTypeSelect = document.getElementById('task_type');
+  const taskTypeHelp = document.getElementById('task-type-help');
+  
+  // Disable and clear task type select
+  taskTypeSelect.disabled = true;
+  taskTypeSelect.innerHTML = '<option value="" selected disabled>Taaktypes laden...</option>';
+  taskTypeHelp.textContent = 'Taaktypes worden geladen...';
+  
+  // Fetch task types from API
+  fetch(`/api/company/${companyId}/task-types`)
+    .then(response => response.json())
+    .then(data => {
+      if (data.error) {
+        taskTypeSelect.innerHTML = '<option value="" selected disabled>Fout bij laden</option>';
+        taskTypeHelp.textContent = 'Kon taaktypes niet laden. Probeer het opnieuw.';
+        if (callback) callback();
+        return;
+      }
+      
+      // Clear and populate task types
+      taskTypeSelect.innerHTML = '<option value="" selected disabled>Kies een taak</option>';
+      
+      if (data.task_types && data.task_types.length > 0) {
+        data.task_types.forEach(taskType => {
+          const option = document.createElement('option');
+          option.value = taskType.id;
+          // Capitalize first letter van naam
+          option.textContent = taskType.name.charAt(0).toUpperCase() + taskType.name.slice(1);
+          taskTypeSelect.appendChild(option);
+        });
+        taskTypeSelect.disabled = false;
+        taskTypeHelp.textContent = 'Selecteer een taaktype';
+        // Verberg waarschuwing als die er is
+        const warningDiv = document.getElementById('no-task-types-warning');
+        if (warningDiv) {
+          warningDiv.style.display = 'none';
+        }
+        // Toon formulier velden
+        document.getElementById('product_type').disabled = false;
+        document.getElementById('weight').disabled = false;
+        
+        // Execute callback after task types are loaded
+        if (callback) callback();
+      } else {
+        taskTypeSelect.innerHTML = '<option value="" selected disabled>Geen taaktypes beschikbaar</option>';
+        taskTypeSelect.disabled = true;
+        taskTypeHelp.textContent = 'Dit bedrijf heeft nog geen taaktypes geconfigureerd.';
+        
+        // Toon waarschuwing
+        showNoTaskTypesWarning();
+        
+        // Disable formulier velden
+        document.getElementById('product_type').disabled = true;
+        document.getElementById('weight').disabled = true;
+        
+        if (callback) callback();
+      }
+    })
+    .catch(error => {
+      taskTypeSelect.innerHTML = '<option value="" selected disabled>Fout bij laden</option>';
+      taskTypeHelp.textContent = 'Kon taaktypes niet laden. Probeer het opnieuw.';
+      if (callback) callback();
+    });
+}
+
+function showNoTaskTypesWarning() {
+  const warningDiv = document.getElementById('no-task-types-warning');
+  if (warningDiv) {
+    warningDiv.style.display = 'block';
+    // Scroll naar waarschuwing
+    warningDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
 }
 
 // Close dropdown when clicking outside
@@ -169,6 +325,28 @@ document.addEventListener('click', function(event) {
 
 // Handle form submission validation
 document.addEventListener('DOMContentLoaded', function() {
+  // Toggle tussen nieuwe bestelling en kopiëren
+  const newOrderRadio = document.getElementById('new-order');
+  const copyOrderRadio = document.getElementById('copy-order');
+  const previousOrdersSection = document.getElementById('previous-orders-section');
+  const orderForm = document.getElementById('order-form');
+  
+  if (newOrderRadio && copyOrderRadio && previousOrdersSection) {
+    newOrderRadio.addEventListener('change', function() {
+      if (this.checked) {
+        previousOrdersSection.style.display = 'none';
+        orderForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+    
+    copyOrderRadio.addEventListener('change', function() {
+      if (this.checked) {
+        previousOrdersSection.style.display = 'block';
+        previousOrdersSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  }
+  
   const form = document.querySelector('form');
   if (form) {
     form.addEventListener('submit', function(e) {
@@ -181,9 +359,95 @@ document.addEventListener('DOMContentLoaded', function() {
           searchInput.focus();
           toggleCompanyDropdown();
         }
+        return;
+      }
+      
+      const taskTypeSelect = document.getElementById('task_type');
+      if (!taskTypeSelect || !taskTypeSelect.value || taskTypeSelect.disabled) {
+        e.preventDefault();
+        alert('Selecteer een taaktype voordat je de bestelling plaatst. Als er geen taaktypes beschikbaar zijn, heeft dit bedrijf nog geen taaktypes geconfigureerd.');
+        return;
+      }
+      
+      const productType = document.getElementById('product_type');
+      const weight = document.getElementById('weight');
+      if (productType && productType.disabled) {
+        e.preventDefault();
+        alert('Vul producttype in voordat je de bestelling plaatst.');
+        productType.focus();
+        return;
+      }
+      if (weight && weight.disabled) {
+        e.preventDefault();
+        alert('Vul gewicht in voordat je de bestelling plaatst.');
+        weight.focus();
+        return;
       }
     });
   }
+  
+  // Handle copy order buttons
+  const copyButtons = document.querySelectorAll('.copy-order-btn');
+  copyButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      // Get data from button
+      const taskTypeId = this.getAttribute('data-task-type-id');
+      const taskType = this.getAttribute('data-task-type');
+      const productType = this.getAttribute('data-product-type');
+      const weight = this.getAttribute('data-weight');
+      const companyId = this.getAttribute('data-company-id');
+      const companyName = this.getAttribute('data-company-name');
+      const addressId = this.getAttribute('data-address-id');
+      
+      // Fill in form fields
+      if (productType) {
+        document.getElementById('product_type').value = productType;
+      }
+      if (weight) {
+        document.getElementById('weight').value = weight;
+      }
+      if (addressId) {
+        document.getElementById('address_id').value = addressId;
+      }
+      if (companyId && companyName) {
+        // Set company
+        document.getElementById('selected-company-id').value = companyId;
+        document.getElementById('company-search').value = companyName;
+        const display = document.getElementById('selected-company-display');
+        display.textContent = 'Geselecteerd: ' + companyName;
+        display.style.display = 'block';
+        document.getElementById('company-search').removeAttribute('required');
+        document.getElementById('selected-company-id').setAttribute('required', 'required');
+        
+        // Load task types for this company, then set the selected task type
+        const taskTypeSelect = document.getElementById('task_type');
+        if (taskTypeId) {
+          // Load task types and then select the correct one
+          loadTaskTypes(companyId, function() {
+            // After task types are loaded, select the correct one
+            if (taskTypeSelect) {
+              taskTypeSelect.value = taskTypeId;
+            }
+          });
+        } else {
+          // Just load task types without selecting
+          loadTaskTypes(companyId);
+        }
+      }
+      
+      // Scroll to form
+      document.getElementById('order-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      
+      // Highlight the form
+      const formCard = document.querySelector('.card.shadow-sm');
+      if (formCard) {
+        formCard.style.border = '2px solid #0d6efd';
+        setTimeout(() => {
+          formCard.style.border = '';
+        }, 2000);
+      }
+    });
+  });
 });
 </script>
 

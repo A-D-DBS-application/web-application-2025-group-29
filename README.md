@@ -1,5 +1,3 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/DxqGQVx4)
-
 # AgriFlow - Web Application MVP
 
 AgriFlow is een webapplicatie voor het beheren van agrarische bestellingen en logistiek. Het platform verbindt klanten, bedrijven en chauffeurs om efficiënt bestellingen te plaatsen, te beheren en uit te voeren.
@@ -21,18 +19,21 @@ Het systeem gebruikt intelligente algoritmes voor:
 - **Registratie & Login**: Eenvoudige gebruikersnaam-gebaseerde authenticatie (geen wachtwoord vereist)
 - **Profiel Beheer**: Klanten kunnen adressen beheren
 - **Bestellingen Plaatsen**: Klanten kunnen bestellingen plaatsen met deadline, taaktype, producttype en gewicht
+- **Eerdere Bestellingen Kopiëren**: Klanten kunnen voltooide bestellingen kopiëren (alleen deadline en gewicht aanpassen)
 - **Bestellingen Beheren**: Klanten kunnen bestellingen bekijken, bewerken en annuleren (indien nog niet toegewezen)
 - **Bedrijf Dashboard**: Overzicht van alle bestellingen met prioriteitsscores en chauffeur suggesties
+- **Custom Taaktypes**: Bedrijven kunnen eigen taaktypes toevoegen met tijden per 1000kg
 - **Chauffeur Toewijzing**: Bedrijven kunnen chauffeurs toewijzen aan bestellingen
-- **Chauffeur Dashboard**: Chauffeurs zien hun toegewezen ritten en kunnen taken voltooien
-- **Statistieken**: Bedrijven zien overzichten van totaal, pending en voltooide bestellingen
+- **Chauffeur Dashboard**: Chauffeurs zien hun toegewezen ritten met gewicht en werkduur, kunnen taken voltooien
+- **Statistieken**: Bedrijven zien maandelijkse en jaarlijkse statistieken per taaktype en per chauffeur
 
 ## Algoritme Features
 
 - **Priority Scoring**: Bestellingen worden automatisch gesorteerd op urgentie
-- **Smart Driver Suggestion**: Systeem stelt automatisch de beste chauffeur voor
-- **Workload Calculation**: Berekent beschikbare uren per chauffeur
-- **Time Estimation**: Schat benodigde tijd per bestelling op basis van taaktype en gewicht
+- **Smart Driver Suggestion**: Systeem stelt automatisch de beste chauffeur voor op basis van beschikbaarheid
+- **Workload Calculation**: Berekent beschikbare uren per chauffeur (12-urige werkdag)
+- **Time Estimation**: Schat benodigde tijd per bestelling op basis van custom taaktype tijden en gewicht
+- **Duplicate Filtering**: Filtert dubbele orders bij het kopiëren van eerdere bestellingen
 
 ## Installatie
 
@@ -108,8 +109,10 @@ Voor Klanten
 
 2. **Bestelling plaatsen**
    - Klik op "Plaats een bestelling" of ga naar de order pagina
-   - Selecteer een adres (of voeg er eerst een toe)
-   - Kies een bedrijf
+   - Kies tussen "Nieuwe bestelling" of "Eerdere bestelling kopiëren"
+   - Bij kopiëren: selecteer een voltooide bestelling (alleen deadline en gewicht aanpassen)
+   - Bij nieuwe: selecteer een adres (of voeg er eerst een toe)
+   - Kies een bedrijf (taaktypes worden dynamisch geladen)
    - Vul deadline, taaktype, producttype en gewicht in
    - Bevestig de bestelling
 
@@ -124,13 +127,25 @@ Voor Bedrijven
    - Overzicht van alle bestellingen, gesorteerd op prioriteit
    - Statistieken: totaal, pending, voltooide bestellingen
 
-2. **Chauffeur toewijzen**
+2. **Taaktypes beheren**
+   - Ga naar "Profiel" in de navigatiebalk
+   - Voeg custom taaktypes toe (bijv. "ploegen", "zaaien")
+   - Stel tijd per 1000kg in voor elk taaktype
+   - Verwijder taaktypes indien nodig
+
+3. **Chauffeur toewijzen**
    - Voor elke bestelling zonder chauffeur zie je een suggestie
    - Selecteer een chauffeur uit de dropdown
    - Klik op "Toewijzen"
    - De bestelling wordt gemarkeerd als "accepted"
 
-3. **Prioriteitsscores**
+4. **Statistieken bekijken**
+   - Ga naar "Statistieken" in de navigatiebalk
+   - Bekijk maandelijkse statistieken (selecteer maand)
+   - Bekijk jaarlijkse statistieken
+   - Zie tonnen per taaktype en per chauffeur
+
+5. **Prioriteitsscores**
    - Elke bestelling heeft een prioriteitsscore (0-100)
    - Bestellingen worden automatisch gesorteerd: hoogste prioriteit eerst
    - Score gebaseerd op: deadline urgentie, gewicht, leeftijd
@@ -143,6 +158,7 @@ Voor Chauffeurs
 2. **Ritten bekijken**
    - Ga naar "Ritten" in de navigatiebalk
    - Zie actieve en voltooide ritten
+   - Ritten tonen gewicht en werkduur (exclusief reistijd)
    - Ritten zijn gesorteerd op deadline
 
 3. **Taak voltooien**
@@ -150,8 +166,6 @@ Voor Chauffeurs
    - De status wordt automatisch bijgewerkt naar "completed"
 
 ## Algoritme
-
-Het AgriFlow platform gebruikt verschillende algoritmes voor intelligente besluitvorming:
 
 Priority Scoring
 Het `calculate_priority_score()` algoritme berekent een prioriteitsscore (0-100) voor elke bestelling:
@@ -174,24 +188,27 @@ Het `calculate_priority_score()` algoritme berekent een prioriteitsscore (0-100)
 Smart Driver Suggestion
 Het `suggest_best_driver()` algoritme stelt automatisch de beste chauffeur voor:
 
-- **Beschikbaarheid op Deadline Dag (0-50 punten)**:
-  - Controleert of taak past binnen 10-urige werkdag
-  - Bonus voor veel beschikbare ruimte
+- **Beschikbaarheid op Deadline Dag**:
+  - Controleert of taak past binnen 12-urige werkdag
+  - Alleen beschikbare uren op deadline dag worden meegenomen
+  - Score gebaseerd op beschikbare ruimte (60-100 punten)
 
-- **Totale Workload (0-30 punten)**:
-  - Chauffeurs met minder taken krijgen hogere scores
-  - Geen taken = +30 punten bonus
-
-- **Deadline Compatibiliteit (0-20 punten)**:
-  - Bonus als chauffeur geen/weinig taken heeft op deadline dag
+- **Workload**: Berekent totale uren per chauffeur voor geaccepteerde bestellingen op deadline dag
 
 Time Calculation
 - **Order Time**: Berekent benodigde tijd op basis van:
-  - Taaktype (pletten: 1u/1000kg, malen: 2u/1000kg, zuigen/blazen: 0.5u/1000kg, mengen: 1u/1000kg)
-  - Gewicht
-  - Reistijd: 0.75 uur per bestelling
+  - Custom taaktype tijden per 1000kg (instelbaar per bedrijf)
+  - Gewicht van de bestelling
+  - Reistijd: 0.75 uur per bestelling (standaard)
+  - Fallback: 1.0 uur per 1000kg als geen custom tijd is ingesteld
 
 - **Workload**: Berekent totale uren per chauffeur voor geaccepteerde bestellingen
+
+Duplicate Filtering
+Het `filter_duplicate_orders()` algoritme filtert dubbele orders bij het kopiëren:
+- Orders zijn duplicaten als: task_type_id, product_type, address_id en company_id hetzelfde zijn
+- Deadline en gewicht mogen verschillen
+- Behoudt de meest recente order van elke groep duplicaten
 
 **Implementatie**: Alle algoritmes zijn zelf geïmplementeerd in `app/algorithms.py` zonder gebruik van externe AI/ML APIs.
 
@@ -202,7 +219,8 @@ De database bestaat uit de volgende tabellen:
 - **Companies**: Bedrijf informatie
 - **Drivers**: Chauffeur informatie, gekoppeld aan bedrijven
 - **Address**: Klant adressen
-- **Orders**: Bestellingen met status tracking (pending, accepted, completed)
+- **TaskTypes**: Custom taaktypes per bedrijf met tijd per 1000kg
+- **Orders**: Bestellingen met status tracking (pending, accepted, completed), gekoppeld aan TaskTypes
 
 Zie `database_schema.sql` voor het volledige DDL schema met constraints, indexen en comments.
 
@@ -227,56 +245,51 @@ web-application-2025-group-29/
 │       ├── customer_orders.html
 │       ├── edit_order.html
 │       ├── company_dashboard.html
+│       ├── company_statistics.html
 │       ├── driver_dashboard.html
 │       └── driver_select_company.html
 ├── database_schema.sql      # DDL schema
 ├── requirements.txt         # Python dependencies
 ├── run.py                   # Application entry point
 ├── README.md                # Dit bestand
-└── AgriFlow_userstories.docx # User stories documentatie
+└── AgriFlow_userstories.pdf # User stories documentatie
 
 ## Feedback Sessies
 
 Tijdens de ontwikkeling hebben we regelmatig feedback verzameld van onze externe partner. Hieronder vind je de opnames van de feedback sessies:
 
-### Feedback Sessie 1
-- **Datum**: [VOEG DATUM TOE]
+Feedback Sessie 1
+- **Datum**: 16/11/2025
 - **Link**: [VOEG LINK TOE NAAR AUDIO/VIDEO OPNAME]
 
-### Feedback Sessie 2
-- **Datum**: [VOEG DATUM TOE]
+Feedback Sessie 2
+- **Datum**: 30/11/2025
 - **Link**: [VOEG LINK TOE NAAR AUDIO/VIDEO OPNAME]
 
 
-### Feedback Sessie 3 (indien van toepassing)
-- **Datum**: [VOEG DATUM TOE]
+Feedback Sessie 3 (indien van toepassing)
+- **Datum**: 14/11/2025
 - **Link**: [VOEG LINK TOE NAAR AUDIO/VIDEO OPNAME]
-
-**Opmerking**: Upload de feedback opnames naar Google Drive, YouTube (unlisted), of een andere cloud service en voeg de links hierboven toe.
 
 ## UI Prototype
 Het UI prototype is ontwikkeld in Figma en getest met potentiële gebruikers voordat de implementatie begon.
 
-- **Prototype Link**: [VOEG LINK TOE NAAR PROTOTYPE]
-- **Screenshots**: Zie `screenshots/` folder voor screenshots van de uiteindelijke applicatie
-
-**Opmerking**: Als je een UI prototype hebt gemaakt, voeg hier de link toe. Als je alleen de uiteindelijke applicatie hebt, verwijder deze sectie of pas aan.
+**Figma Link**: https://cake-ranch-12974397.figma.site/
 
 ## Kanban Board
 
 Tijdens de ontwikkeling hebben we gebruik gemaakt van een Kanban board voor project management en sprint planning.
 
-- **Kanban Board Link**: [VOEG LINK TOE NAAR KANBAN BOARD]
-
-**Opmerking**: Als je GitHub Projects, Trello, Jira, of een ander tool hebt gebruikt, voeg hier de link toe. Als je geen Kanban board hebt gebruikt, verwijder deze sectie.
+**Kanban Board Link**: [VOEG LINK TOE NAAR KANBAN BOARD]
 
 ## Team
 
 **Groep 29**
 
-- [Team lid 1 naam] - [Rol/Verantwoordelijkheid]
-- [Team lid 2 naam] - [Rol/Verantwoordelijkheid]
-- [Team lid 3 naam] - [Rol/Verantwoordelijkheid]
-- [Team lid 4 naam] - [Rol/Verantwoordelijkheid]
+- Senne Beyl - [Rol/Verantwoordelijkheid]
+- Laurien Deroo - [Rol/Verantwoordelijkheid]
+- Gaëtan Hanet - [Rol/Verantwoordelijkheid]
+- Maxime Ramon - [Rol/Verantwoordelijkheid]
+- Mathis Van Camp - [Rol/Verantwoordelijkheid]
 
-**Externe Partner**: [Gerd Deroo]
+**Externe Partner**: Gerd Deroo

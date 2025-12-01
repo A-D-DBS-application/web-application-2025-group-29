@@ -49,7 +49,7 @@
                     <span class="text-muted">-</span>
                   {% endif %}
                 </td>
-                <td><span class="badge bg-secondary">{{ order.task_type|default('-') }}</span></td>
+                <td><span class="badge border border-dark text-dark">{{ order.task_type|default('-') }}</span></td>
                 <td>{{ order.product_type|default('-') }}</td>
                 <td>
                   {% if order.address %}
@@ -114,7 +114,7 @@
       </div>
     </div>
     
-    <div class="card shadow-sm">
+    <div class="card shadow-sm mb-4">
       <div class="card-header border-success">
         <h5 class="mb-0">Voltooide Bestellingen</h5>
       </div>
@@ -155,7 +155,7 @@
                     <span class="text-muted">-</span>
                   {% endif %}
                 </td>
-                <td><span class="badge bg-secondary">{{ order.task_type|default('-') }}</span></td>
+                <td><span class="badge border border-dark text-dark">{{ order.task_type|default('-') }}</span></td>
                 <td>{{ order.product_type|default('-') }}</td>
                 <td>
                   {% if order.address %}

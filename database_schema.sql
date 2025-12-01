@@ -71,3 +71,12 @@ COMMENT ON COLUMN "Orders"."Weight" IS 'Weight in kg';
 COMMENT ON COLUMN "Orders".deadline IS 'Deadline date for order completion';
 COMMENT ON COLUMN "Drivers".company_id IS 'Foreign key to Companies table, nullable for drivers without company';
 
+-- TaskTypes tabel bestaat al in de database, maar we voegen time_per_1000kg toe als die nog niet bestaat
+-- ALTER TABLE "TaskTypes" ADD COLUMN IF NOT EXISTS time_per_1000kg DECIMAL(10, 4);
+
+-- Als de kolom al bestaat, gebruik dan deze comment:
+COMMENT ON TABLE "TaskTypes" IS 'Stores task types per company with time per 1000kg';
+COMMENT ON COLUMN "TaskTypes".task_type IS 'Name of the task type (e.g., ploegen, pletten)';
+COMMENT ON COLUMN "TaskTypes".company_id IS 'Foreign key to Companies table';
+-- COMMENT ON COLUMN "TaskTypes".time_per_1000kg IS 'Time in hours needed per 1000kg for this task type';
+
