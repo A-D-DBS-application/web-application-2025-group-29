@@ -236,7 +236,7 @@ web-application-2025-group-29/
 │   ├── routes.py            # Alle routes en functionaliteiten
 │   ├── algorithms.py        # Priority scoring en driver suggestion algoritmes
 │   └── templates/           # HTML templates
-│       ├── Base.HTML        # Base template
+│       ├── base.html        # Base template
 │       ├── login.html
 │       ├── signup.html
 │       ├── home.html
