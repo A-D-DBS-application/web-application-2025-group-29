@@ -228,7 +228,7 @@ Zie `database_schema.sql` voor het volledige DDL schema met constraints, indexen
 Het Entity Relationship Diagram is beschikbaar in: ![alt text](<ERD model.png>)
 
 ## Project Structuur
-
+```
 web-application-2025-group-29/
 ├── app/
 │   ├── __init__.py          # Flask app factory
@@ -253,6 +253,7 @@ web-application-2025-group-29/
 ├── run.py                   # Application entry point
 ├── README.md                # Dit bestand
 └── AgriFlow_userstories.pdf # User stories documentatie
+```
 
 ## Feedback Sessies
 
