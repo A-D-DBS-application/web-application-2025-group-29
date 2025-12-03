@@ -48,24 +48,14 @@ def calculate_priority_score(order: Dict) -> float:
 
 
 def calculate_order_time_hours(order: Dict, custom_task_times: Optional[Dict[int, float]] = None) -> float:
-    """
-    Bereken de totale tijd voor een order (werk tijd + reistijd).
-    
-    Args:
-        order: Order dictionary met task_type (naam) of task_type_id (ID), Weight/weight
-        custom_task_times: Dictionary met custom taaktype tijden {task_type_id: time_per_1000kg}
-    """
-    # Check voor directe custom time override
     if order.get('_custom_time_per_1000kg'):
         time_per_1000kg = order['_custom_time_per_1000kg']
     else:
         task_type_id = order.get('task_type_id')
         
-        # Gebruik custom task times via ID
         if custom_task_times and task_type_id and task_type_id in custom_task_times:
             time_per_1000kg = custom_task_times[task_type_id]
         else:
-            # Fallback: default 1 uur per 1000kg als taaktype niet gevonden
             time_per_1000kg = 1.0
     
     try:
@@ -84,16 +74,15 @@ def calculate_driver_workload_hours(driver_id: int, orders: List[Dict], target_d
     
     for order in orders:
         if order.get('driver_id') == driver_id and order.get('status') == 'accepted':
-            # Als target_date is gegeven, check of deze order op die dag is
             if target_date:
                 order_deadline = order.get('deadline')
                 if order_deadline:
                     try:
                         deadline_date = datetime.strptime(order_deadline, '%Y-%m-%d').date()
                         if deadline_date != target_date:
-                            continue  # Skip deze order, niet op target datum
+                            continue  
                     except (ValueError, TypeError):
-                        pass  # Als deadline niet parsebaar is, tel mee
+                        pass
             
             order_time = calculate_order_time_hours(order, custom_task_times)
             total_hours += order_time
@@ -103,7 +92,6 @@ def calculate_driver_workload_hours(driver_id: int, orders: List[Dict], target_d
 
 def calculate_driver_score(driver: Dict, order: Dict, driver_workload_hours: Dict[int, float], all_orders: List[Dict], custom_task_times: Optional[Dict[int, float]] = None) -> float:
     driver_id = driver.get('id')
-    
     if not driver_id:
         return 0.0
     
@@ -186,9 +174,6 @@ def suggest_best_driver(drivers: List[Dict], order: Dict, driver_workload_hours:
 
 
 def _get_suggestion_reason(score: float, total_hours: float, available_hours: float, order_time: float) -> str:
-    """
-    Genereer reden voor suggestie op basis van beschikbare uren.
-    """
     if available_hours >= order_time + 4:
         return f"Veel ruimte beschikbaar ({available_hours:.1f}u beschikbaar, taak: {order_time:.1f}u)"
     elif available_hours >= order_time + 2:

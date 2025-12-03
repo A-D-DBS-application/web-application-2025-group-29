@@ -5,7 +5,7 @@
   <!-- Company Home Page -->
   <div class="row mb-4">
     <div class="col-12">
-      <div class="p-5 mb-4 border border-success rounded-3">
+      <div class="p-5 mb-4 border card-primary rounded-3">
         <div class="container-fluid py-5">
           <h1 class="display-5 fw-bold">Welkom bij AgriFlow</h1>
           <p class="col-md-8 fs-4">
@@ -17,8 +17,8 @@
           </p>
           <p class="col-md-8 fs-6 opacity-75">Beheer je bestellingen en klanten op één plek</p>
           <div class="mt-4">
-            <a class="btn btn-success btn-lg me-2" href="{{ url_for('routes.company_dashboard') }}">Bekijk Bestellingen</a>
-            <a class="btn btn-outline-success btn-lg me-2" href="{{ url_for('routes.company_statistics') }}">Statistieken</a>
+            <a class="btn btn-primary-custom btn-lg me-2" href="{{ url_for('routes.company_dashboard') }}">Bekijk Bestellingen</a>
+            <a class="btn btn-outline-primary-custom btn-lg me-2" href="{{ url_for('routes.company_statistics') }}">Statistieken</a>
           </div>
         </div>
       </div>
@@ -30,12 +30,12 @@
   <!-- Driver Home Page -->
   <div class="row mb-4">
     <div class="col-12">
-      <div class="p-5 mb-4 border border-success rounded-3">
+      <div class="p-5 mb-4 border card-primary rounded-3">
         <div class="container-fluid py-5">
           <h1 class="display-5 fw-bold">Chauffeur Dashboard</h1>
           <p class="col-md-8 fs-4">Mijn Toegewezen Taken</p>
           <div class="mt-4">
-            <a class="btn btn-success btn-lg" href="{{ url_for('routes.driver_dashboard') }}">Bekijk Dashboard</a>
+            <a class="btn btn-primary-custom btn-lg" href="{{ url_for('routes.driver_dashboard') }}">Bekijk Dashboard</a>
           </div>
         </div>
       </div>
@@ -44,33 +44,23 @@
 
 {% else %}
   <!-- Customer/Public Home Page -->
-      <div class="p-5 mb-4 border border-success rounded-3">
+      <div class="p-5 mb-4 border card-primary rounded-3">
     <div class="container-fluid py-5">
       <h1 class="display-6 fw-bold">Welkom bij AgriFlow</h1>
       <p class="col-md-8 fs-5">De slimme oplossing voor landbouwplanning en logistiek.</p>
       {% if g.current_user_id and user_type == 'customer' %}
         <div class="mt-4">
-          <a class="btn btn-success btn-lg me-2" href="{{ url_for('routes.order') }}">Plaats een bestelling</a>
-          <a class="btn btn-outline-success btn-lg" href="{{ url_for('routes.customer_orders') }}">Mijn Bestellingen</a>
+          <a class="btn btn-primary-custom btn-lg me-2" href="{{ url_for('routes.order') }}">Plaats een bestelling</a>
+          <a class="btn btn-outline-primary-custom btn-lg" href="{{ url_for('routes.customer_orders') }}">Mijn Bestellingen</a>
         </div>
       {% elif g.current_user_id and user_type != 'customer' %}
         <p class="col-md-8 fs-6 text-muted mt-3">Je bent ingelogd als {{ user_type }}. Gebruik het menu om naar je dashboard te gaan.</p>
       {% else %}
-        <a class="btn btn-success btn-lg me-2" href="{{ url_for('routes.signup') }}">Begin hier (account aanmaken)</a>
-        <a class="btn btn-outline-success btn-lg" href="{{ url_for('routes.login') }}">Ik heb al een account</a>
+        <a class="btn btn-primary-custom btn-lg me-2" href="{{ url_for('routes.signup') }}">Begin hier (account aanmaken)</a>
+        <a class="btn btn-outline-primary-custom btn-lg" href="{{ url_for('routes.login') }}">Ik heb al een account</a>
       {% endif %}
     </div>
   </div>
 
 {% endif %}
-
-<style>
-.hover-card {
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-.hover-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-}
-</style>
 {% endblock %}

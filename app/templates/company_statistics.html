@@ -8,11 +8,11 @@
     </div>
     
     <!-- Statistieken voor de maand -->
-    <div class="card shadow-sm mb-4 border-success">
-      <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+    <div class="card shadow-sm mb-4 card-primary">
+      <div class="card-header card-header-primary d-flex justify-content-between align-items-center">
         <h5 class="mb-0">Statistieken maand ({{ selected_month_label }})</h5>
         <form method="GET" action="{{ url_for('routes.company_statistics') }}" class="d-inline">
-          <select name="month" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto; display: inline-block;">
+          <select name="month" class="form-select form-select-sm select-inline" onchange="this.form.submit()">
             {% for month in available_months %}
             <option value="{{ month.value }}" {% if month.value == selected_month %}selected{% endif %}>
               {{ month.label }}
@@ -28,9 +28,9 @@
         <div class="row g-3 mb-4">
           {% for task_type_id, stats in stats_by_task_selected_month.items() %}
           <div class="col-md-4 col-lg-2">
-            <div class="card border-success h-100">
+            <div class="card card-primary h-100">
               <div class="card-body text-center">
-                <h3 class="card-title text-success">{{ '%.2f'|format(stats['tons']) }}</h3>
+                <h3 class="card-title text-primary-custom">{{ '%.2f'|format(stats['tons']) }}</h3>
                 <p class="card-text text-muted mb-0">{{ stats['name'] }}</p>
                 <small class="text-muted">ton</small>
               </div>
@@ -45,47 +45,14 @@
         {% endif %}
         <div class="mb-4">
           <strong>Totaal {{ selected_month_label }}:</strong> 
-          <span class="text-success">{{ '%.2f'|format(total_selected_month) }} ton</span>
+          <span class="text-primary-custom">{{ '%.2f'|format(total_selected_month) }} ton</span>
         </div>
-
-        <!-- Per chauffeur voor de maand -->
-        <h6 class="mb-3">Per Chauffeur</h6>
-        {% if driver_stats and driver_stats|length > 0 %}
-        <div class="table-responsive">
-          <table class="table table-hover">
-            <thead>
-              <tr>
-                <th>Chauffeur</th>
-                <th class="text-end">{{ selected_month_label }} (ton)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for driver in driver_stats %}
-              <tr>
-                <td><strong>{{ driver.name }}</strong></td>
-                <td class="text-end">{{ '%.2f'|format(driver.selected_month_tons) }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-            <tfoot>
-              <tr class="table-success">
-                <td><strong>Totaal</strong></td>
-                <td class="text-end"><strong>{{ '%.2f'|format(total_driver_selected_month) }}</strong></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-        {% else %}
-        <div class="alert alert-success mb-0" role="alert">
-          Er zijn nog geen statistieken beschikbaar voor deze maand. Statistieken worden alleen getoond voor voltooide bestellingen.
-        </div>
-        {% endif %}
       </div>
     </div>
 
     <!-- Statistieken voor het jaar -->
-    <div class="card shadow-sm mb-4 border-success">
-      <div class="card-header bg-success text-white">
+    <div class="card shadow-sm mb-4 card-primary">
+      <div class="card-header card-header-primary">
         <h5 class="mb-0">Statistieken jaar {{ selected_year }}</h5>
       </div>
       <div class="card-body">
@@ -95,9 +62,9 @@
         <div class="row g-3 mb-4">
           {% for task_type_id, stats in stats_by_task_year.items() %}
           <div class="col-md-4 col-lg-2">
-            <div class="card border-success h-100">
+            <div class="card card-primary h-100">
               <div class="card-body text-center">
-                <h3 class="card-title text-success">{{ '%.2f'|format(stats['tons']) }}</h3>
+                <h3 class="card-title text-primary-custom">{{ '%.2f'|format(stats['tons']) }}</h3>
                 <p class="card-text text-muted mb-0">{{ stats['name'] }}</p>
                 <small class="text-muted">ton</small>
               </div>
@@ -112,41 +79,8 @@
         {% endif %}
         <div class="mb-4">
           <strong>Totaal {{ selected_year }}:</strong> 
-          <span class="text-success">{{ '%.2f'|format(total_year_tons) }} ton</span>
+          <span class="text-primary-custom">{{ '%.2f'|format(total_year_tons) }} ton</span>
         </div>
-
-        <!-- Per chauffeur voor het jaar -->
-        <h6 class="mb-3">Per Chauffeur</h6>
-        {% if driver_stats and driver_stats|length > 0 %}
-        <div class="table-responsive">
-          <table class="table table-hover">
-            <thead>
-              <tr>
-                <th>Chauffeur</th>
-                <th class="text-end">{{ selected_year }} (ton)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for driver in driver_stats %}
-              <tr>
-                <td><strong>{{ driver.name }}</strong></td>
-                <td class="text-end">{{ '%.2f'|format(driver.year_tons) }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-            <tfoot>
-              <tr class="table-success">
-                <td><strong>Totaal</strong></td>
-                <td class="text-end"><strong>{{ '%.2f'|format(total_driver_year) }}</strong></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-        {% else %}
-        <div class="alert alert-success mb-0" role="alert">
-          Er zijn nog geen statistieken beschikbaar voor dit jaar. Statistieken worden alleen getoond voor voltooide bestellingen.
-        </div>
-        {% endif %}
       </div>
     </div>
 

@@ -23,7 +23,7 @@
                 onkeyup="filterCompanies()"
                 onclick="toggleCompanyDropdown()"
               >
-              <div id="company-dropdown" class="dropdown-menu w-100" style="max-height: 300px; overflow-y: auto; display: none;">
+              <div id="company-dropdown" class="dropdown-menu w-100">
                 {% for company in companies %}
                 <a 
                   class="dropdown-item company-option" 
@@ -41,7 +41,7 @@
               </div>
               <input type="hidden" name="company_id" id="selected-company-id" value="{{ order.company.id if order.company else '' }}" required>
             </div>
-            <small class="text-muted" id="selected-company-display" style="{% if order.company %}display: block;{% else %}display: none;{% endif %}">
+            <small class="text-muted {% if not order.company %}hidden{% endif %}" id="selected-company-display">
               {% if order.company %}Geselecteerd: {{ order.company.name }}{% endif %}
             </small>
             {% if not companies %}
@@ -54,7 +54,7 @@
               <option value="" selected disabled>{% if order.company %}Kies een taak{% else %}Kies eerst een bedrijf{% endif %}</option>
             </select>
             <small class="text-muted" id="task-type-help">{% if order.company %}Selecteer een taaktype{% else %}Selecteer eerst een bedrijf om beschikbare taaktypes te zien{% endif %}</small>
-            <div id="no-task-types-warning" class="alert alert-warning mt-2" style="display: none;">
+            <div id="no-task-types-warning" class="alert alert-warning mt-2 hidden">
               <strong>Let op!</strong> Dit bedrijf heeft nog geen taaktypes geconfigureerd. Je kunt momenteel geen bestelling plaatsen bij dit bedrijf. Neem contact op met het bedrijf of kies een ander bedrijf.
             </div>
           </div>
@@ -91,7 +91,7 @@
           </div>
           <div class="col-12 d-grid d-md-flex justify-content-md-end gap-2">
             <a href="{{ url_for('routes.customer_orders') }}" class="btn btn-secondary">Annuleren</a>
-            <button class="btn btn-success" type="submit">Bestelling bijwerken</button>
+            <button class="btn btn-primary-custom" type="submit">Bestelling bijwerken</button>
           </div>
         </form>
       </div>
@@ -271,30 +271,4 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 </script>
-
-<style>
-#company-dropdown {
-  position: absolute;
-  z-index: 1000;
-  margin-top: 2px;
-  border: 1px solid #ced4da;
-  border-radius: 0.375rem;
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-}
-
-.company-option {
-  cursor: pointer;
-  padding: 0.5rem 1rem;
-}
-
-.company-option:hover {
-  background-color: #f8f9fa;
-}
-
-#company-search:focus {
-  border-color: #86b7fe;
-  outline: 0;
-  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-}
-</style>
 {% endblock %}

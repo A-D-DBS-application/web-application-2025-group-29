@@ -14,8 +14,8 @@
     </div>
     {% endif %}
     
-    <div class="card shadow-sm mb-4 border-success">
-      <div class="card-header bg-success text-white">
+    <div class="card shadow-sm mb-4 card-primary">
+      <div class="card-header card-header-primary">
         <h5 class="mb-0">Alle Bestellingen</h5>
       </div>
       <div class="card-body">
@@ -99,7 +99,7 @@
                   </td>
                   <td>
                     {% if order.status %}
-                      <span class="badge {% if order.status == 'completed' %}bg-light text-dark border{% elif order.status == 'accepted' %}bg-success text-white{% elif order.status == 'pending' %}bg-light text-dark border border-secondary{% else %}bg-light text-dark border{% endif %}">
+                      <span class="badge {% if order.status == 'completed' %}bg-light text-dark border{% elif order.status == 'accepted' %}badge-primary{% elif order.status == 'pending' %}bg-light text-dark border border-secondary{% else %}bg-light text-dark border{% endif %}">
                         {% if order.status == 'completed' %}Uitgevoerd{% elif order.status == 'accepted' %}Toegewezen{% elif order.status == 'pending' %}In behandeling{% else %}{{ order.status|title }}{% endif %}
                       </span>
                     {% else %}
@@ -108,15 +108,15 @@
                   </td>
                   <td>
                     {% if drivers and drivers|length > 0 %}
-                      <form method="POST" action="{{ url_for('routes.company_assign_driver', order_id=order.id) }}" class="d-flex" style="gap: 0.5rem;">
-                        <select name="driver_id" class="form-select form-select-sm" style="min-width: 200px;">
+                      <form method="POST" action="{{ url_for('routes.company_assign_driver', order_id=order.id) }}" class="d-flex form-flex-gap">
+                        <select name="driver_id" class="form-select form-select-sm select-min-width">
                           <option value="">— kies chauffeur —</option>
                           {% if order.driver_availability %}
                             {% for avail in order.driver_availability %}
                               {% set is_suggested = order.suggested_driver and order.suggested_driver.driver_id == avail.driver_id %}
                               {% set is_assigned = order.driver_id and order.driver_id == avail.driver_id %}
                               <option value="{{ avail.driver_id }}" 
-                                {% if is_suggested %}style="background-color: #d1ecf1; font-weight: bold;"{% endif %}
+                                {% if is_suggested %}class="option-suggested"{% endif %}
                                 {% if is_assigned %}selected{% endif %}>
                                 {{ avail.driver_name }}{% if is_suggested %} - Aanbevolen{% endif %} ({{ '%.1f'|format(avail.available_hours) }}u beschikbaar)
                               </option>
@@ -126,14 +126,14 @@
                               {% set is_suggested = order.suggested_driver and order.suggested_driver.driver_id == d.id %}
                               {% set is_assigned = order.driver_id and d.id == order.driver_id %}
                               <option value="{{ d.id }}" 
-                                {% if is_suggested %}style="background-color: #d1ecf1; font-weight: bold;"{% endif %}
+                                {% if is_suggested %}class="option-suggested"{% endif %}
                                 {% if is_assigned %}selected{% endif %}>
                                 {{ d.name }}{% if is_suggested %} - Aanbevolen{% endif %}
                               </option>
                             {% endfor %}
                           {% endif %}
                         </select>
-                        <button type="submit" class="btn btn-sm btn-success">Toewijzen</button>
+                        <button type="submit" class="btn btn-sm btn-primary-custom">Toewijzen</button>
                       </form>
                       {% if order.suggested_driver and not order.driver_id %}
                         <small class="text-muted d-block mt-1">
@@ -160,7 +160,7 @@
     </div>
     
     <div class="card shadow-sm mb-4">
-      <div class="card-header border-success">
+      <div class="card-header card-border-primary">
         <h5 class="mb-0">Voltooide Bestellingen</h5>
       </div>
       <div class="card-body">

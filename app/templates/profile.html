@@ -45,7 +45,7 @@
             <p class="text-muted">Nog geen adressen toegevoegd.</p>
           {% endif %}
           
-          <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addAddressModal">
+          <button type="button" class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#addAddressModal">
             + Adres toevoegen
           </button>
         </div>
@@ -79,7 +79,7 @@
                 </div>
                 <div class="modal-footer">
                   <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
-                  <button type="submit" class="btn btn-success">Adres toevoegen</button>
+                  <button type="submit" class="btn btn-primary-custom">Adres toevoegen</button>
                 </div>
               </form>
             </div>
@@ -109,7 +109,7 @@
             <p class="text-muted">Nog geen taaktypes toegevoegd. Voeg een taaktype toe om te beginnen.</p>
           {% endif %}
           
-          <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addTaskTypeModal">
+          <button type="button" class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#addTaskTypeModal">
             + Taaktype toevoegen
           </button>
         </div>
@@ -137,7 +137,7 @@
                 </div>
                 <div class="modal-footer">
                   <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
-                  <button type="submit" class="btn btn-success">Taaktype toevoegen</button>
+                  <button type="submit" class="btn btn-primary-custom">Taaktype toevoegen</button>
                 </div>
               </form>
             </div>
@@ -147,12 +147,12 @@
         
         <div class="mt-3">
           {% if user['user_type'] == 'customer' %}
-          <a class="btn btn-success me-2" href="{{ url_for('routes.order') }}">Plaats een bestelling</a>
+          <a class="btn btn-primary-custom me-2" href="{{ url_for('routes.order') }}">Plaats een bestelling</a>
           <a class="btn btn-outline-primary" href="{{ url_for('routes.customer_orders') }}">Mijn Bestellingen</a>
           {% elif user['user_type'] == 'company' %}
-          <a class="btn btn-success" href="{{ url_for('routes.company_dashboard') }}">Bekijk Dashboard</a>
+          <a class="btn btn-primary-custom" href="{{ url_for('routes.company_dashboard') }}">Bekijk Dashboard</a>
           {% elif user['user_type'] == 'driver' %}
-          <a class="btn btn-success" href="{{ url_for('routes.driver_dashboard') }}">Bekijk Ritten</a>
+          <a class="btn btn-primary-custom" href="{{ url_for('routes.driver_dashboard') }}">Bekijk Ritten</a>
           {% endif %}
         </div>
       </div>

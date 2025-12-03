@@ -4,11 +4,11 @@
   <div class="col-12">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="h4 mb-0">Mijn Bestellingen</h2>
-      <a href="{{ url_for('routes.order') }}" class="btn btn-success">Nieuwe Bestelling</a>
+      <a href="{{ url_for('routes.order') }}" class="btn btn-primary-custom">Nieuwe Bestelling</a>
     </div>
     
-    <div class="card shadow-sm mb-4 border-success">
-      <div class="card-header bg-success text-white">
+    <div class="card shadow-sm mb-4 card-primary">
+      <div class="card-header card-header-primary">
         <h5 class="mb-0">Mijn Bestellingen</h5>
       </div>
       <div class="card-body p-0">
@@ -70,7 +70,7 @@
                 </td>
                 <td>
                   {% if order.status %}
-                    <span class="badge {% if order.status == 'completed' %}bg-light text-dark border{% elif order.status == 'accepted' %}bg-success text-white{% elif order.status == 'pending' %}bg-light text-dark border border-secondary{% else %}bg-light text-dark border{% endif %}">
+                    <span class="badge {% if order.status == 'completed' %}bg-light text-dark border{% elif order.status == 'accepted' %}badge-primary{% elif order.status == 'pending' %}bg-light text-dark border border-secondary{% else %}bg-light text-dark border{% endif %}">
                       {% if order.status == 'completed' %}Uitgevoerd{% elif order.status == 'accepted' %}Toegewezen{% elif order.status == 'pending' %}In behandeling{% else %}{{ order.status|title }}{% endif %}
                     </span>
                   {% else %}
@@ -115,7 +115,7 @@
     </div>
     
     <div class="card shadow-sm mb-4">
-      <div class="card-header border-success">
+      <div class="card-header card-border-primary">
         <h5 class="mb-0">Voltooide Bestellingen</h5>
       </div>
       <div class="card-body p-0">
@@ -175,7 +175,7 @@
                   {% endif %}
                 </td>
                 <td>
-                  <span class="badge bg-success">Uitgevoerd</span>
+                  <span class="badge badge-primary">Uitgevoerd</span>
                 </td>
                 <td>
                   {% if order.created_at %}

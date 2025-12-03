@@ -6,8 +6,8 @@
       <h2 class="h4 mb-0">Chauffeur Dashboard</h2>
     </div>
     
-    <div class="card shadow-sm mb-4 border-success">
-      <div class="card-header bg-success text-white">
+    <div class="card shadow-sm mb-4 card-primary">
+      <div class="card-header card-header-primary">
         <h5 class="mb-0">Mijn Ritten</h5>
       </div>
       <div class="card-body">
@@ -15,8 +15,8 @@
           <div class="row g-3">
             {% for order in active_orders %}
             <div class="col-md-6 col-lg-4">
-              <div class="card h-100 border-success">
-                <div class="card-header bg-success text-white">
+              <div class="card h-100 card-primary">
+                <div class="card-header card-header-primary">
                   <h6 class="mb-0">Rit #{{ order.id }}</h6>
                 </div>
                 <div class="card-body">
@@ -65,7 +65,7 @@
                     <a 
                       href="https://www.google.com/maps/dir/?api=1&destination={{ full_address|replace(' ', '+') }}" 
                       target="_blank" 
-                      class="btn btn-success mb-2"
+                      class="btn btn-primary-custom mb-2"
                     >
                       Navigeer naar Google Maps
                     </a>
@@ -94,7 +94,7 @@
     </div>
     
     <div class="card shadow-sm mb-4">
-      <div class="card-header border-success">
+      <div class="card-header card-border-primary">
         <h5 class="mb-0">Voltooide Ritten</h5>
       </div>
       <div class="card-body">
@@ -102,8 +102,8 @@
           <div class="row g-3">
             {% for order in completed_orders %}
             <div class="col-md-6 col-lg-4">
-              <div class="card h-100 border-success">
-                <div class="card-header border-success">
+              <div class="card h-100 card-primary">
+                <div class="card-header card-border-primary">
                   <h6 class="mb-0">Rit #{{ order.id }}</h6>
                 </div>
                 <div class="card-body">
