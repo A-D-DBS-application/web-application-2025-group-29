@@ -276,6 +276,9 @@ Het UI prototype is ontwikkeld in Figma en getest met potentiële gebruikers voo
 
 **Figma Link**: https://cake-ranch-12974397.figma.site/
 
+## Render link
+https://web-application-2025-group-29.onrender.com
+
 ## Kanban Board
 
 Tijdens de ontwikkeling hebben we gebruik gemaakt van een Kanban board voor project management en sprint planning.
