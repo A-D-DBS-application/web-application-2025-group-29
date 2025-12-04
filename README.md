@@ -277,8 +277,9 @@ Het UI prototype is ontwikkeld in Figma en getest met potentiële gebruikers voo
 
 **Figma Link**: https://cake-ranch-12974397.figma.site/
 
-## Render link
+## Render & Pythonanywhere link
 https://web-application-2025-group-29.onrender.com
+https://lderoo.pythonanywhere.com
 
 ## Kanban Board
 
@@ -297,3 +298,18 @@ Tijdens de ontwikkeling hebben we gebruik gemaakt van een Kanban board voor proj
 - Mathis Van Camp - [Rol/Verantwoordelijkheid]
 
 **Externe Partner**: Gerd Deroo
+
+## vragen op Feedback
+- lengte routes.py -> mag het opgesplitst worden in meerdere python doc?
+- database in orde? meer of minder?
+- algoritme moeilijker of niet? 
+      Priority Scoring
+      Smart Driver Suggestion
+      Time Calculation Task
+      Duplicate Filtering
+- Kanban board verplicht als het niet gebruikt is?
+- wat betekent 'uitbreiden buiten MVP' ?
+- wij kunnen niet via normale manier aan supabase linken, nu via API calls en dus geen SQLAlchemy -> is dit ok?
+- zowel frontend en backend filtering -> ok?
+
+
