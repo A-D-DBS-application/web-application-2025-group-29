@@ -311,5 +311,5 @@ Tijdens de ontwikkeling hebben we gebruik gemaakt van een Kanban board voor proj
 - wat betekent 'uitbreiden buiten MVP' ?
 - wij kunnen niet via normale manier aan supabase linken, nu via API calls en dus geen SQLAlchemy -> is dit ok?
 - zowel frontend en backend filtering -> ok?
-
+- test push
 
