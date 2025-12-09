@@ -42,8 +42,9 @@
                 </td>
                 <td>
                   {% if order.deadline %}
-                    <span class="text-dark">
+                    <span class="{% if order.is_overdue %}text-danger fw-semibold{% else %}text-dark{% endif %}">
                       {{ order.deadline }}
+                      {% if order.is_overdue %}<small class="text-danger ms-1">(te laat)</small>{% endif %}
                     </span>
                   {% else %}
                     <span class="text-muted">-</span>
@@ -148,8 +149,9 @@
                 </td>
                 <td>
                   {% if order.deadline %}
-                    <span class="text-dark">
+                    <span class="{% if order.is_overdue %}text-danger fw-semibold{% else %}text-dark{% endif %}">
                       {{ order.deadline }}
+                      {% if order.is_overdue %}<small class="text-danger ms-1">(te laat)</small>{% endif %}
                     </span>
                   {% else %}
                     <span class="text-muted">-</span>
