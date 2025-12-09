@@ -299,17 +299,3 @@ Tijdens de ontwikkeling hebben we gebruik gemaakt van een Kanban board voor proj
 
 **Externe Partner**: Gerd Deroo
 
-## vragen op Feedback
-- lengte routes.py -> mag het opgesplitst worden in meerdere python doc?
-- database in orde? meer of minder?
-- algoritme moeilijker of niet? 
-      Priority Scoring
-      Smart Driver Suggestion
-      Time Calculation Task
-      Duplicate Filtering
-- Kanban board verplicht als het niet gebruikt is?
-- wat betekent 'uitbreiden buiten MVP' ?
-- wij kunnen niet via normale manier aan supabase linken, nu via API calls en dus geen SQLAlchemy -> is dit ok?
-- zowel frontend en backend filtering -> ok?
-- test push
-
