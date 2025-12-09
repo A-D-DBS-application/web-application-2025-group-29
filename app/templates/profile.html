@@ -97,7 +97,14 @@
                 <div>
                   <strong>{{ task_type.task_type }}</strong>
                   <br>
-                  <small class="text-muted">Tijd per 1000kg: {{ '%.4f'|format(task_type.time_per_1000kg) if task_type.time_per_1000kg else 'Niet ingesteld' }} uur</small>
+                  <small class="text-muted">
+                    Tijd per 1000kg:
+                    {% if task_type.time_per_1000kg %}
+                      {{ '{:g}'.format(task_type.time_per_1000kg) }} uur
+                    {% else %}
+                      Niet ingesteld
+                    {% endif %}
+                  </small>
                 </div>
                 <form method="POST" action="{{ url_for('routes.company_delete_task_type', task_type_id=task_type.id) }}" class="d-inline" onsubmit="return confirm('Weet je zeker dat je dit taaktype wilt verwijderen?');">
                   <button type="submit" class="btn btn-sm btn-outline-danger">Verwijderen</button>

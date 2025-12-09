@@ -11,6 +11,7 @@ from .routes import (
 )
 
 
+# Laat chauffeur een bedrijf kiezen of wijzigen
 @bp.route("/driver/select-company", methods=["GET", "POST"])
 @login_required
 def driver_select_company():
@@ -63,6 +64,7 @@ def driver_select_company():
         return render_template("driver_select_company.html", companies=[])
 
 
+# Dashboard voor chauffeur met actieve en afgeronde ritten
 @bp.route("/driver/dashboard")
 @login_required
 def driver_dashboard():
@@ -138,6 +140,7 @@ def driver_dashboard():
         )
 
 
+# Markeer een order als voltooid door de chauffeur
 @bp.route("/driver/complete-order/<int:order_id>", methods=["POST"])
 @login_required
 def driver_complete_order(order_id):

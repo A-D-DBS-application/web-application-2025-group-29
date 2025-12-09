@@ -19,6 +19,7 @@ from .routes import (
 )
 
 
+# Profielpagina (gegevens + adressen/taaktypes)
 @bp.route("/profile", methods=["GET", "POST"])
 @login_required
 def profile():
@@ -110,6 +111,7 @@ def profile():
     )
 
 
+# Voeg een adres toe voor de klant
 @bp.route("/profile/add-address", methods=["POST"])
 @login_required
 def add_address():
@@ -150,6 +152,7 @@ def add_address():
     return redirect(url_for("routes.profile"))
 
 
+# Verwijder een adres van de klant
 @bp.route("/profile/delete-address/<int:address_id>", methods=["POST"])
 @login_required
 def delete_address(address_id):
@@ -198,6 +201,7 @@ def delete_address(address_id):
     return redirect(url_for("routes.profile"))
 
 
+# Overzicht van klantorders (actief en voltooid)
 @bp.route("/customer/orders")
 @login_required
 def customer_orders():
@@ -305,6 +309,7 @@ def customer_orders():
         )
 
 
+# Annuleer een bestelling van de klant
 @bp.route("/customer/cancel-order/<int:order_id>", methods=["POST"])
 @login_required
 def cancel_order(order_id):
@@ -360,6 +365,7 @@ def cancel_order(order_id):
     return redirect(url_for("routes.customer_orders"))
 
 
+# Bewerken van een klantorder
 @bp.route("/customer/orders/<int:order_id>/edit", methods=["GET", "POST"])
 @login_required
 def edit_order(order_id):
@@ -489,6 +495,7 @@ def edit_order(order_id):
         return redirect(url_for("routes.customer_orders"))
 
 
+# Plaats een nieuwe order als klant
 @bp.route("/order", methods=["GET", "POST"])
 @login_required
 def order():
@@ -639,6 +646,7 @@ def order():
     return render_template("order.html", companies=companies, addresses=addresses, previous_orders=previous_orders)
 
 
+# API: taaktypes per bedrijf ophalen
 @bp.route("/api/company/<int:company_id>/task-types", methods=["GET"])
 def get_company_task_types(company_id):
     try:

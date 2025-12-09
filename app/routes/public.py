@@ -6,6 +6,7 @@ from ..config import supabase
 from .routes import bp
 
 
+# Voor elke request: zet current user info in g-context
 @bp.before_request
 def load_current_user():
     g.current_user_id = session.get("email")
@@ -22,6 +23,7 @@ def load_current_user():
         g.current_user_display_name = g.current_user_email
 
 
+# Landing: toon home afhankelijk van user-type
 @bp.route("/")
 def home():
     user_type = session.get("user_type", "customer")
@@ -96,6 +98,7 @@ def home():
     return render_template("home.html", user_type=user_type)
 
 
+# Login zonder wachtwoord op emailadres
 @bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -189,6 +192,7 @@ def login():
     return render_template("login.html")
 
 
+# Signup voor klant/bedrijf/driver
 @bp.route("/signup", methods=["GET", "POST"])
 def signup():
     user_type = request.args.get("user_type") or request.form.get("user_type") or "customer"
@@ -304,6 +308,7 @@ def signup():
     return render_template("signup.html", user_type=user_type)
 
 
+# Logout en sessie leegmaken
 @bp.route("/logout")
 def logout():
     session.clear()

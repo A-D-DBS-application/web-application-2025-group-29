@@ -12,6 +12,7 @@ from ..config import supabase
 bp = Blueprint("routes", __name__)
 
 
+# Decorator die een login afdwingt vóór de view wordt uitgevoerd
 def login_required(view_func):
     def wrapped(*args, **kwargs):
         if "email" not in session or "user_type" not in session:
@@ -23,6 +24,7 @@ def login_required(view_func):
     return wrapped
 
 
+# Haal of cache de client_id voor de huidige sessie
 def get_client_id():
     client_id = session.get("client_id")
     if not client_id:
@@ -44,6 +46,7 @@ def get_client_id():
     return client_id
 
 
+# Haal of cache de company_id voor de huidige sessie
 def get_company_id():
     company_id = session.get("company_id")
     if not company_id:
@@ -65,6 +68,7 @@ def get_company_id():
     return company_id
 
 
+# Geef de taaktype-naam terug op basis van id of meegeleverde data
 def get_task_type_name(task_type_id, task_types_data=None):
     if task_types_data:
         return task_types_data.get("task_type")
@@ -84,6 +88,7 @@ def get_task_type_name(task_type_id, task_types_data=None):
     return None
 
 
+# Zoek de klantnaam bij een adres-id
 def get_customer_info_from_address(address_id):
     if not address_id:
         return None, None
@@ -115,6 +120,7 @@ def get_customer_info_from_address(address_id):
     return None, None
 
 
+# Normaliseer adresdata naar een eenvoudig dict
 def format_address_data(address_data):
     if not address_data:
         return None
@@ -126,6 +132,7 @@ def format_address_data(address_data):
     }
 
 
+# Zet orders om naar het formaat dat de planning-algoritmes gebruiken
 def convert_orders_for_algorithm(orders_raw):
     return [
         {
@@ -403,6 +410,7 @@ def build_order_info_for_edit(order_data):
     return order_info
 
 
+# Parse een datum-string naar een UTC datetime
 def parse_date_utc(date_str):
     if not date_str:
         return None
@@ -420,6 +428,7 @@ def parse_date_utc(date_str):
         return None
 
 
+# Bepaal of een deadline verstreken is (behalve bij completed)
 def is_order_overdue(deadline_str, status=None):
     if not deadline_str or (status and status == "completed"):
         return False
@@ -429,6 +438,8 @@ def is_order_overdue(deadline_str, status=None):
     today = datetime.now(timezone.utc).date()
     return deadline_dt.date() < today
 
+
+# Converteer gewicht in kg naar tonnen
 def kg_to_tons(weight_kg):
     if weight_kg is None:
         return 0.0
@@ -438,6 +449,7 @@ def kg_to_tons(weight_kg):
         return 0.0
 
 
+# Bereken tonnages per taaktype
 def calculate_statistics_by_task_type(orders, custom_task_types):
     stats = {}
     for task_type_id, task_type_name in custom_task_types.items():
@@ -452,6 +464,7 @@ def calculate_statistics_by_task_type(orders, custom_task_types):
     return stats
 
 
+# Genereer beschikbare maanden op basis van orderdata
 def generate_available_months(all_orders):
     available_months = []
     if not all_orders:

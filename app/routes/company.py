@@ -24,6 +24,7 @@ from .routes import (
 )
 
 
+# Voeg een taaktype toe voor het bedrijf
 @bp.route("/company/add-task-type", methods=["POST"])
 @login_required
 def company_add_task_type():
@@ -101,6 +102,7 @@ def company_add_task_type():
     return redirect(url_for("routes.profile"))
 
 
+# Verwijder een taaktype van het bedrijf
 @bp.route("/company/delete-task-type/<int:task_type_id>", methods=["POST"])
 @login_required
 def company_delete_task_type(task_type_id):
@@ -131,6 +133,7 @@ def company_delete_task_type(task_type_id):
     return redirect(url_for("routes.profile"))
 
 
+# Dashboard voor bedrijven met bestellingen en chauffeurs
 @bp.route("/company/dashboard")
 @login_required
 def company_dashboard():
@@ -224,6 +227,7 @@ def company_dashboard():
         )
 
 
+# Statistieken voor het bedrijf (per maand/jaar)
 @bp.route("/company/statistics")
 @login_required
 def company_statistics():
@@ -340,6 +344,7 @@ def company_statistics():
         return redirect(url_for("routes.home"))
 
 
+# Wijs een chauffeur toe aan een order
 @bp.route("/company/assign-driver/<int:order_id>", methods=["POST"])
 @login_required
 def company_assign_driver(order_id):
