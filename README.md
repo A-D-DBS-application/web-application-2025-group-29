@@ -281,12 +281,6 @@ Het UI prototype is ontwikkeld in Figma en getest met potentiële gebruikers voo
 https://web-application-2025-group-29.onrender.com
 https://lderoo.pythonanywhere.com
 
-## Kanban Board
-
-Tijdens de ontwikkeling hebben we gebruik gemaakt van een Kanban board voor project management en sprint planning.
-
-**Kanban Board Link**: [VOEG LINK TOE NAAR KANBAN BOARD]
-
 ## Team
 
 **Groep 29**
