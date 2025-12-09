@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, g
 from datetime import datetime, timezone
-from .config import supabase
-from .algorithms import suggest_best_driver, sort_orders_by_priority, calculate_driver_workload_hours, calculate_order_time_hours, filter_duplicate_orders
+from ..config import supabase
+from ..algorithms import suggest_best_driver, sort_orders_by_priority, calculate_driver_workload_hours, calculate_order_time_hours, filter_duplicate_orders
 bp = Blueprint('routes', __name__)
 
 def login_required(view_func):
