@@ -225,8 +225,6 @@ def filter_duplicate_orders(orders: List[Dict]) -> List[Dict]:
             company_id
         )
                 
-        if key not in seen_orders:
-            seen_orders[key] = order
+        seen_orders[key] = order
     
     return list(seen_orders.values())
-

@@ -246,6 +246,7 @@ def customer_orders():
                     "deadline": order.get("deadline"),
                     "task_type": get_task_type_name(order.get("task_type_id"), order.get("TaskTypes")),
                     "product_type": order.get("product_type"),
+                    "weight": order.get("Weight") or order.get("weight"),
                     "created_at": order.get("created_at"),
                     "address": format_address_data(order.get("Address")),
                     "company": None,
@@ -666,4 +667,3 @@ def get_company_task_types(company_id):
         from flask import jsonify
 
         return jsonify({"error": str(e)}), 500
-

@@ -314,6 +314,7 @@ def get_previous_orders_for_customer(client_id):
                 previous_orders.append(order_info)
     except Exception:
         pass
+    previous_orders.reverse()
     return filter_duplicate_orders(previous_orders)
 
 
@@ -504,4 +505,3 @@ def generate_available_months(all_orders):
                 current = datetime(current.year, current.month + 1, 1, tzinfo=timezone.utc)
         available_months.reverse()
     return available_months
-
