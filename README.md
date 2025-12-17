@@ -232,9 +232,15 @@ Het Entity Relationship Diagram is beschikbaar in: ![alt text](<ERD model.png>)
 web-application-2025-group-29/
 ├── app/
 │   ├── __init__.py          # Flask app factory
-│   ├── config.py            # Configuratie en Supabase setup
-│   ├── routes.py            # Alle routes en functionaliteiten
+│   ├── config.py            # Configuratie en Supabase setup           
 │   ├── algorithms.py        # Priority scoring en driver suggestion algoritmes
+│   └── routes/              # Alle routes en functionaliteiten
+│       ├── __init__.py
+│       ├── client.py
+│       ├── company.py
+│       ├── driver.py
+│       ├── public.py
+│       ├── routes.py
 │   └── templates/           # HTML templates
 │       ├── base.html        # Base template
 │       ├── login.html
@@ -252,7 +258,11 @@ web-application-2025-group-29/
 ├── requirements.txt         # Python dependencies
 ├── run.py                   # Application entry point
 ├── README.md                # Dit bestand
-└── AgriFlow_userstories.pdf # User stories documentatie
+├── screenshots/             # Screenshots
+└── documents/
+        └── AgriFlow_userstories.pdf # User stories documentatie
+        └── MVP Handover & IP Assignment Agreement Group 29.pdf # Handover documentatie
+
 ```
 
 ## Feedback Sessies
@@ -261,16 +271,16 @@ Tijdens de ontwikkeling hebben we regelmatig feedback verzameld van onze externe
 
 Feedback Sessie 1
 - **Datum**: 16/11/2025
-- **Link**: [VOEG LINK TOE NAAR AUDIO/VIDEO OPNAME]
+- **Link**: https://drive.google.com/file/d/1GGiO0HpRblZ6_rXR5sTw12FXwBBN0v26/view?usp=sharing
 
 Feedback Sessie 2
 - **Datum**: 30/11/2025
-- **Link**: [VOEG LINK TOE NAAR AUDIO/VIDEO OPNAME]
+- **Link**: https://drive.google.com/file/d/1XrSKwCkMbdPe_Xt3SXy79jUJQoPo00Ct/view?usp=sharing 
 
 
-Feedback Sessie 3 (indien van toepassing)
-- **Datum**: 14/11/2025
-- **Link**: [VOEG LINK TOE NAAR AUDIO/VIDEO OPNAME]
+Feedback Sessie 3
+- **Datum**: 14/12/2025
+- **Link**: https://drive.google.com/file/d/1Qd6O48kGrassXbM7ud3v2B8GWShPZTWZ/view?usp=sharing
 
 ## UI Prototype
 Het UI prototype is ontwikkeld in Figma en getest met potentiële gebruikers voordat de implementatie begon.
@@ -285,11 +295,11 @@ https://lderoo.pythonanywhere.com
 
 **Groep 29**
 
-- Senne Beyl - [Rol/Verantwoordelijkheid]
-- Laurien Deroo - [Rol/Verantwoordelijkheid]
-- Gaëtan Hanet - [Rol/Verantwoordelijkheid]
-- Maxime Ramon - [Rol/Verantwoordelijkheid]
-- Mathis Van Camp - [Rol/Verantwoordelijkheid]
+- Senne Beyl
+- Laurien Deroo
+- Gaëtan Hanet
+- Maxime Ramon 
+- Mathis Van Camp
 
 **Externe Partner**: Gerd Deroo
 
