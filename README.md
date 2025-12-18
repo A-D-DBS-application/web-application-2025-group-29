@@ -291,6 +291,9 @@ Het UI prototype is ontwikkeld in Figma en getest met potentiële gebruikers voo
 https://web-application-2025-group-29.onrender.com
 https://lderoo.pythonanywhere.com
 
+## Demo video link
+https://drive.google.com/file/d/1veQZ3gVJspHPbAY2FMg8SfNkwvZsvx-m/view?usp=sharing
+
 ## Team
 
 **Groep 29**
